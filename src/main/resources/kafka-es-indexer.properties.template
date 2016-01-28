@@ -57,6 +57,8 @@ startOffset=0
 # Kafka FetchRequest's minBytes value 
 # Default: "31457280(bytes), i.e:(10 * 1024 * 1024 * 3)"
 # Set it to ~4MB and slowly rampup based in your heap memory.
+# setting this value to more than 31457280 may cause errors from batch indexing call to ES
+# and in some cases this causes the indexer job to hang 
 kafkaFetchSizeMinBytes=31457280
 
 # Kafka SimpleConsumer socket bufferSize
@@ -67,6 +69,10 @@ kafkaSimpleConsumerSocketTimeoutMs=10000
 # timeout in seconds before force-stopping Indexer app and all indexer jobs
 appStopTimeoutSeconds=10
 
+# number of times to try to re-init Kafka connections/consumer if read/write to Kafka fails
+numberOfReinitTries=2
+# sleep time in ms between Kafka re-init attempts
+kafkaReinitSleepTimeMs=10000
 
 ### ElasticSearch properties ####################################
 # ElasticSearch Host and Port List for all the nodes
@@ -104,6 +110,10 @@ isDryRun=false
 
 # Time in ms for the consumer to sleep between each round of reading events from Kafka
 consumerSleepBetweenFetchsMs=10
+# number of times to try to re-connect to ES when performing batch indexing , if connection to ES fails
+numberOfEsIndexingRetryAttempts=2
+# sleep time in ms between attempts to connect to ES
+esIndexingRetrySleepTimeMs=10000
 
 # flag to enable/disable performance timings reporting; Set it to true when performance/load-testing your app, set to ‘false’ when deploying in production as it will affect performance of the app; defaults to ‘false'
 isPerfReportingEnabled=false
