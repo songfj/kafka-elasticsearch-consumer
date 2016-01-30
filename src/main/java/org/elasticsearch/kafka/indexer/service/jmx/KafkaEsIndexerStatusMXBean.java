@@ -1,4 +1,4 @@
-package org.elasticsearch.kafka.indexer.jmx;
+package org.elasticsearch.kafka.indexer.service.jmx;
 
 import java.util.List;
 

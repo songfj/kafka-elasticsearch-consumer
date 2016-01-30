@@ -2,7 +2,7 @@
   * @author marinapopova
   * Sep 25, 2015
  */
-package org.elasticsearch.kafka.indexer;
+package org.elasticsearch.kafka.indexer.exception;
 
 public class IndexerESException extends Exception {
 

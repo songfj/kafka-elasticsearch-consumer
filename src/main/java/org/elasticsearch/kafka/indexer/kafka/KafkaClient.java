@@ -1,4 +1,4 @@
-package org.elasticsearch.kafka.indexer;
+package org.elasticsearch.kafka.indexer.kafka;
 
 import com.netflix.curator.framework.CuratorFramework;
 import com.netflix.curator.framework.CuratorFrameworkFactory;
@@ -11,7 +11,7 @@ import kafka.common.OffsetAndMetadata;
 import kafka.common.TopicAndPartition;
 import kafka.javaapi.*;
 import kafka.javaapi.consumer.SimpleConsumer;
-import kafka.javaapi.message.ByteBufferMessageSet;
+import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,35 +32,33 @@ public class KafkaClient {
 	private String leaderBrokerHost;
 	private int leaderBrokerPort;
 	private String leaderBrokerURL;
-	private final ConsumerConfig consumerConfig;
+	private ConsumerConfigService consumerConfigService;
 	private String[] kafkaBrokersArray;
 
 	
-	public KafkaClient(final ConsumerConfig config, String kafkaClientId, int partition) throws Exception {
-		logger.info("Instantiating KafkaClient");
-		this.consumerConfig = config;
-		
-		this.topic = config.topic;
+
+	public KafkaClient(ConsumerConfigService consumerConfigservice,String kafkaClientId, int partition) throws Exception{
+		logger.info("Instantiating KafkaClient for partition {} ",partition);
+		kafkaBrokersArray = consumerConfigservice.getKafkaBrokersList().trim().split(",");
 		this.kafkaClientId = kafkaClientId;
 		this.partition = partition;
-		kafkaBrokersArray = config.kafkaBrokersList.trim().split(",");
+		this.topic = consumerConfigservice.getTopic();
+		this.consumerConfigService = consumerConfigservice ;
 		logger.info("### KafkaClient Config: ###");
-		logger.info("kafkaZookeeperList: {}", config.kafkaZookeeperList);
-		logger.info("kafkaBrokersList: {}", config.kafkaBrokersList);
+		logger.info("kafkaZookeeperList: {}", consumerConfigservice.getKafkaZookeeperList());
+		logger.info("kafkaBrokersList: {}", consumerConfigservice.getKafkaBrokersList());
 		logger.info("kafkaClientId: {}", kafkaClientId);
-		logger.info("topic: {}", topic);
+		logger.info("topic: {}", consumerConfigservice.getTopic());
 		logger.info("partition: {}", partition);
 		connectToZooKeeper();
 		findLeader();
 		initConsumer();
-		
 	}
 			
 	public void connectToZooKeeper() throws Exception {
 		try {
-			curator = CuratorFrameworkFactory.newClient(consumerConfig.kafkaZookeeperList, 
-					consumerConfig.zkSessionTimeoutMs, consumerConfig.zkConnectionTimeoutMs,
-					new RetryNTimes(consumerConfig.zkCuratorRetryTimes, consumerConfig.zkCuratorRetryDelayMs));
+			curator = CuratorFrameworkFactory.newClient(consumerConfigService.getKafkaZookeeperList(), consumerConfigService.getZkSessionTimeoutMs(), consumerConfigService.getZkConnectionTimeoutMs(),
+					new RetryNTimes(consumerConfigService.getZkCuratorRetryTimes(), consumerConfigService.getZkCuratorRetryDelayMs()));
 			curator.start();
 			logger.info("Connected to Kafka Zookeeper successfully");
 		} catch (Exception e) {
@@ -71,11 +69,7 @@ public class KafkaClient {
 
 	public void initConsumer() throws Exception{
 		try{
-			this.simpleConsumer = new SimpleConsumer(
-					leaderBrokerHost, leaderBrokerPort, 
-					consumerConfig.kafkaSimpleConsumerSocketTimeoutMs, 
-					consumerConfig.kafkaSimpleConsumerBufferSizeBytes, 
-					kafkaClientId);
+			this.simpleConsumer = new SimpleConsumer(leaderBrokerHost, leaderBrokerPort, consumerConfigService.getKafkaSimpleConsumerSocketTimeoutMs(), consumerConfigService.getKafkaSimpleConsumerBufferSizeBytes(),kafkaClientId);
 			logger.info("Initialized Kafka Consumer successfully for partition {}",partition);
 		}
 		catch(Exception e){
@@ -129,10 +123,10 @@ public class KafkaClient {
 		}
 		if (leaderPartitionMetaData == null || leaderPartitionMetaData.leader() == null) {
 			logger.error("Failed to find leader for topic=[{}], partition=[{}], kafka brokers list: [{}]: PartitionMetadata is null",
-					topic, partition, consumerConfig.kafkaBrokersList);
+					topic, partition, consumerConfigService.getKafkaBrokersList());
 			throw new Exception("Failed to find leader for topic=[" + topic + 
 					"], partition=[" + partition + 
-					", kafka brokers list: [" + consumerConfig.kafkaBrokersList +
+					", kafka brokers list: [" + consumerConfigService.getKafkaBrokersList() +
 					"]: currentPartitionMetadata is null");
 			
 		}		
@@ -152,9 +146,9 @@ public class KafkaClient {
 		try {
 			int kafkaBrokerPort = Integer.parseInt(kafkaBrokerPortStr);
 			leadFindConsumer = new SimpleConsumer(
-					kafkaBrokerHost, kafkaBrokerPort, 
-					consumerConfig.kafkaSimpleConsumerSocketTimeoutMs, 
-					consumerConfig.kafkaSimpleConsumerBufferSizeBytes, 
+					kafkaBrokerHost, kafkaBrokerPort,
+					consumerConfigService.getKafkaSimpleConsumerSocketTimeoutMs(),
+					consumerConfigService.getKafkaSimpleConsumerBufferSizeBytes(),
 					"leaderLookup");
 			List<String> topics = new ArrayList<String>();
 			topics.add(this.topic);
@@ -255,7 +249,7 @@ public class KafkaClient {
 		try{
 			FetchRequest req = new FetchRequestBuilder()
 				.clientId(kafkaClientId)
-				.addFetch(topic, partition, offset, consumerConfig.kafkaFetchSizeMinBytes)
+				.addFetch(topic, partition, offset, consumerConfigService.getKafkaFetchSizeMinBytes())
 				.build();
 			FetchResponse fetchResponse = simpleConsumer.fetch(req);
 			return fetchResponse;
