@@ -3,7 +3,7 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<name>kafka-es-indexer</name>
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>org.elasticsearch.kafka.consumer</groupId>
+	<groupId>org.elasticsearch.kafka.indexer</groupId>
 	<artifactId>kafka-es-indexer</artifactId>
 	<version>${buildId}.${buildNumber}</version>
 	<packaging>jar</packaging>
