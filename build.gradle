@@ -99,7 +99,7 @@ bintray {
         licenses = ['AGPL-V3']
         vcsUrl = artifact_provider_url
         version {
-            name = version
+            name = project.version
             desc = 'Current version'
             released  = new Date()
             vcsTag = '0.0.2'
