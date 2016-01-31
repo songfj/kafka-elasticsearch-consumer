@@ -77,16 +77,16 @@ public class JobManagerService {
 
     @PreDestroy
     public void stop() {
-        logger.error("About to stop all consumer jobs ...");
+        logger.info("About to stop all consumer jobs ...");
         if (executorService != null && !executorService.isTerminated()) {
             try {
                 executorService.awaitTermination(consumerConfigService.getAppStopTimeoutSeconds(), TimeUnit.SECONDS);
-                logger.error("executorService threads stopped ");
+                logger.info("executorService threads stopped ");
             } catch (InterruptedException e) {
                 logger.error("ERROR: failed to stop all consumer jobs due to InterruptedException: ", e);
             }
         }
-        logger.error("Stop() finished");
+        logger.info("Stop() finished");
     }
 
 

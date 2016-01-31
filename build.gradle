@@ -1,10 +1,12 @@
 plugins {
     id "com.jfrog.bintray" version "1.3.1"
+    id "com.jfrog.artifactory" version "4.0.0"
 }
 apply plugin: 'java'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: 'jacoco'
+apply plugin: 'maven-publish'
 
 group = 'org.elasticsearch.kafka.consumer'
 version = release + '.' + build
@@ -89,9 +91,21 @@ artifacts {
     archives sourcesJar
 }
 
+publishing {
+    publications {
+        MyPublication(MavenPublication) {
+            from components.java
+            groupId 'org.elasticsearch.kafka.indexer'
+            artifactId 'kafka-elasticsearch-consumer'
+            version project.version
+        }
+    }
+}
+
 bintray {
     user = artifact_provider_user
     key = artifact_provider_secret
+    publications = ['MyPublication']
     pkg {
         repo = 'bigdatadevs-repo'
         name = 'elasticsearch-kafka-consumer'
