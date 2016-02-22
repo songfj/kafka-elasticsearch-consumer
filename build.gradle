@@ -7,9 +7,13 @@ apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: 'jacoco'
 apply plugin: 'maven-publish'
+apply plugin: 'application'
+
 
 group = 'org.elasticsearch.kafka.indexer'
 version = release + '.' + build
+mainClassName = "org.elasticsearch.kafka.indexer.process.KafkaElasticSearchProcess"
+
 //version = '${buildId}.${buildNumber}'
 
 description = """kafka-elasticsearch-consumer"""
