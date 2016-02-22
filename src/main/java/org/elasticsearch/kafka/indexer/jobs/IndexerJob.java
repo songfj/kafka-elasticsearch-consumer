@@ -32,6 +32,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 	private ByteBufferMessageSet byteBufferMsgSet = null;
 	private FetchResponse fetchResponse = null;
 	private final int currentPartition;
+	private final String currentTopic;
 
 
     private IndexerJobStatus indexerJobStatus;
@@ -41,6 +42,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 	public IndexerJob(ConsumerConfigService configService, MessageHandlerService messageHandlerService,int partition) throws Exception {
 		this.configService = configService;
 		this.currentPartition = partition;
+		this.currentTopic = configService.getTopic();
 		this.messageHandlerService = messageHandlerService ;
 		indexerJobStatus = new IndexerJobStatus(-1L, IndexerJobStatusEnum.Created, partition);
 		isStartingFirstTime = true;
@@ -53,7 +55,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		logger.info("Initializing Kafka for partition {}...",currentPartition);
 		String consumerGroupName = configService.getConsumerGroupName();
 		if (consumerGroupName.isEmpty()) {
-			consumerGroupName = "es_indexer_" + configService.getTopic() + "_" + currentPartition;
+			consumerGroupName = "es_indexer_" + currentTopic + "_" + currentPartition;
 			logger.info("ConsumerGroupName was empty, set it to {} for partition {}", consumerGroupName,currentPartition);
 		}
 		String kafkaClientId = consumerGroupName  + "_" + currentPartition;
@@ -147,7 +149,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 				offsetForThisRound = configService.getStartOffset();
 			} else {
 				throw new Exception(
-						"Custom start offset for topic [" + configService.getTopic() + "], partition [" +
+						"Custom start offset for topic [" + currentTopic + "], partition [" +
 								currentPartition + "] is < 0, which is not an acceptable value - please provide a valid offset; exiting");
 			}
 		} else if (configService.getStartOffsetFrom().equalsIgnoreCase("EARLIEST")) {
@@ -155,7 +157,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		} else if (configService.getStartOffsetFrom().equalsIgnoreCase("LATEST")) {
 			offsetForThisRound = kafkaConsumerClient.getLastestOffset();
 		} else if (configService.getStartOffsetFrom().equalsIgnoreCase("RESTART")) {
-			logger.info("Restarting from where the Offset is left for topic {}, for partition {}",configService.getTopic(),currentPartition);
+			logger.info("Restarting from where the Offset is left for topic {}, for partition {}",currentTopic,currentPartition);
 			offsetForThisRound = kafkaConsumerClient.fetchCurrentOffsetFromKafka();
 			if (offsetForThisRound == -1)
 			{
@@ -302,7 +304,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		}
 		
 		// TODO harden the byteBufferMessageSEt life-cycle - make local var
-		byteBufferMsgSet = fetchResponse.messageSet(configService.getTopic(), currentPartition);
+		byteBufferMsgSet = fetchResponse.messageSet(currentTopic, currentPartition);
 		if (configService.isPerfReportingEnabled()) {
 			long timeAfterKafkaFetch = System.currentTimeMillis();
 			logger.debug("Completed MsgSet fetch from Kafka. Approx time taken is {} ms for partition {}",
@@ -318,7 +320,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 				try {
 					kafkaConsumerClient.saveOffsetInKafka(
 						latestOffset, 
-						fetchResponse.errorCode(configService.getTopic(), currentPartition));
+						fetchResponse.errorCode(currentTopic, currentPartition));
 				} catch (Exception e) {
 					// throw an exception as this will break reading messages in the next round
 					logger.error("Failed to commit the offset in Kafka - exiting for partition {} ",currentPartition, e);
@@ -356,7 +358,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		// TODO optimize getting of the fetchResponse.errorCode - in some cases there is no error, 
 		// so no need to call the API every time
 		try {
-			kafkaConsumerClient.saveOffsetInKafka(nextOffsetToProcess, fetchResponse.errorCode(configService.getTopic(), currentPartition));
+			kafkaConsumerClient.saveOffsetInKafka(nextOffsetToProcess, fetchResponse.errorCode(currentTopic, currentPartition));
 		} catch (Exception e) {
 			logger.error("Failed to commit the Offset in Kafka after processing and posting to ES for partition {}: ",currentPartition, e);
 			logger.info("Trying to reInitialize Kafka and commit the offset again for partition {}...",currentPartition);
@@ -364,7 +366,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 				reInitKafka();
 				logger.info("Attempting to commit the offset after reInitializing Kafka now..");
 				kafkaConsumerClient.saveOffsetInKafka(
-					nextOffsetToProcess, fetchResponse.errorCode(configService.getTopic(),currentPartition));
+					nextOffsetToProcess, fetchResponse.errorCode(currentTopic,currentPartition));
 			} catch (Exception e2) {
 				logger.error("Failed to commit the Offset in Kafka even after reInitializing Kafka - exiting for partition {}: " ,currentPartition, e2);
 				// there is no point in continuing  - as we will keep re-processing events
@@ -446,7 +448,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 	public void handleError() throws Exception {
 		// Do things according to the error code
 		short errorCode = fetchResponse.errorCode(
-				configService.getTopic(), currentPartition);
+				currentTopic, currentPartition);
 		logger.error("Error fetching events from Kafka - handling it. Error code: {}  for partition {}"
 				,errorCode, currentPartition);
 		if (errorCode == ErrorMapping.BrokerNotAvailableCode()) {
@@ -520,15 +522,15 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 	}
 	public void stopClients() {
 		logger.info("About to stop ES client for topic {}, partition {}", 
-				configService.getTopic(), currentPartition);
+				currentTopic, currentPartition);
 		if (esClient != null)
 			esClient.close();
 		logger.info("About to stop Kafka client for topic {}, partition {}", 
-				configService.getTopic(), currentPartition);
+				currentTopic, currentPartition);
 		if (kafkaConsumerClient != null)
 			kafkaConsumerClient.close();
 		logger.info("Stopped Kafka and ES clients for topic {}, partition {}", 
-				configService.getTopic(), currentPartition);
+				currentTopic, currentPartition);
 	}
 	
 	public IndexerJobStatus getIndexerJobStatus() {

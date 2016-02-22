@@ -24,7 +24,7 @@ import java.util.concurrent.*;
 public class JobManagerService {
     private static final Logger logger = LoggerFactory.getLogger(JobManagerService.class);
 
-    private static final String KAFKA_CONSUMER_STREAM_POOL_NAME_FORMAT = "kafka-indexer-consumer-thread-%d";
+    private static final String KAFKA_CONSUMER_STREAM_POOL_NAME_FORMAT = "kafka-es-indexer-thread-%d";
     @Autowired
     private ConsumerConfigService consumerConfigService ;
     @Autowired

@@ -10,7 +10,10 @@
 
 
     <context:component-scan base-package="org.elasticsearch.kafka.indexer.service"/>
-    <context:property-placeholder location="classpath:config/kafka-es-indexer.properties" />
+    <!--<context:property-placeholder location="classpath:config/kafka-es-indexer.properties, file:${indexer.properties}"
+    	ignore-resource-not-found="true" /> -->
+    <context:property-placeholder location="classpath:config/kafka-es-indexer.properties"/>
+    
     <bean id="objectMapper" class="com.fasterxml.jackson.databind.ObjectMapper"/>
 
 </beans>
