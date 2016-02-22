@@ -5,9 +5,11 @@ apply plugin: 'java'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: 'jacoco'
+apply plugin: 'application'
 
 group = 'org.elasticsearch.kafka.consumer'
 version = release + '.' + build
+mainClassName = "org.elasticsearch.kafka.indexer.process.KafkaElasticSearchProcess"
 //version = '${buildId}.${buildNumber}'
 
 description = """kafka-elasticsearch-consumer"""
