@@ -21,10 +21,10 @@ public class ElasticSearchClientService {
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchClientService.class);
     public static final String CLUSTER_NAME = "cluster.name";
 
-    @Value("${es.ClusterName:KafkaESCluster}")
+    @Value("${esClusterName:KafkaESCluster}")
     private String esClusterName;
 
-    @Value("#{'${es.HostPortList:localhost:9300}'.split(',')}")
+    @Value("#{'${esHostPortList:localhost:9300}'.split(',')}")
     private List<String> esHostPortList;
 
     private TransportClient elasticSearchClient;
