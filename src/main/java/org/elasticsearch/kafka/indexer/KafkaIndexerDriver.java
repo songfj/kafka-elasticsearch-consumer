@@ -33,7 +33,7 @@ public class KafkaIndexerDriver {
 		
 		logger.info("Registering KafkfaEsIndexerStatus MBean: ");
 		MBeanServer mbs = ManagementFactory.getPlatformMBeanServer(); 
-        ObjectName name = new ObjectName("org.elasticsearch.kafka.indexer:type=KafkfaEsIndexerStatus"); 
+        ObjectName name = new ObjectName("KafkaESIndexer:type=KafkfaEsIndexerStatus"); 
         KafkaEsIndexerStatusMXBean hc = new KafkaEsIndexerStatus(indexerJobManager);
         mbs.registerMBean(hc, name); 
         
