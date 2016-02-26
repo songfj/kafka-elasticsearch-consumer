@@ -1,18 +1,19 @@
 package org.elasticsearch.kafka.indexer.service;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import org.elasticsearch.kafka.indexer.jobs.IndexerJob;
 import org.elasticsearch.kafka.indexer.jobs.IndexerJobStatus;
-import org.elasticsearch.kafka.indexer.service.inter.IndexHandlerService;
-import org.elasticsearch.kafka.indexer.service.inter.MessageHandlerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PreDestroy;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -30,7 +31,8 @@ public class JobManagerService {
     @Autowired
     private ApplicationContext indexerContext;
     @Autowired
-    private IndexHandlerService indexhandlerService ;
+	@Qualifier("indexHandler")
+    private IIndexHandler indexhandlerService ;
     private ExecutorService executorService;
     @Value("${numOfPartitions:4}")
     private int numOfPartitions;
@@ -52,7 +54,7 @@ public class JobManagerService {
         try {
             for (int partition=firstPartition; partition<=lastPartition; partition++){
                 logger.info("Creating IndexerJob for partition={}", partition);
-                MessageHandlerService messageHandlerService = indexerContext.getBean(MessageHandlerService.class);
+                IMessageHandler messageHandlerService = (IMessageHandler) indexerContext.getBean("messageHandler");
                 IndexerJob pIndexerJob = new IndexerJob(consumerConfigService, messageHandlerService,partition);
                 indexerJobs.put(partition, pIndexerJob);
             }

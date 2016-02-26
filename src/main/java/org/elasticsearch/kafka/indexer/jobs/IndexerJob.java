@@ -3,17 +3,18 @@ package org.elasticsearch.kafka.indexer.jobs;
 import kafka.common.ErrorMapping;
 import kafka.javaapi.FetchResponse;
 import kafka.javaapi.message.ByteBufferMessageSet;
+
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.kafka.indexer.FailedEventsLogger;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
-import org.elasticsearch.kafka.indexer.kafka.KafkaClient;
-import org.elasticsearch.kafka.indexer.logger.FailedEventsLogger;
 import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
-import org.elasticsearch.kafka.indexer.service.inter.MessageHandlerService;
+import org.elasticsearch.kafka.indexer.service.IMessageHandler;
+import org.elasticsearch.kafka.indexer.service.KafkaClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +24,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 
 	private static final Logger logger = LoggerFactory.getLogger(IndexerJob.class);
 	private ConsumerConfigService configService;
-	private MessageHandlerService messageHandlerService ;
+	private IMessageHandler messageHandlerService ;
 	private TransportClient esClient;
 	public KafkaClient kafkaConsumerClient;
 	private long offsetForThisRound;
@@ -39,7 +40,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
     private volatile boolean shutdownRequested = false;
 
 
-	public IndexerJob(ConsumerConfigService configService, MessageHandlerService messageHandlerService,int partition) throws Exception {
+	public IndexerJob(ConsumerConfigService configService, IMessageHandler messageHandlerService,int partition) throws Exception {
 		this.configService = configService;
 		this.currentPartition = partition;
 		this.currentTopic = configService.getTopic();
