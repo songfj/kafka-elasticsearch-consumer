@@ -1,24 +1,32 @@
-package org.elasticsearch.kafka.indexer.service.helper;
+package org.elasticsearch.kafka.indexer.examples;
 
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.elasticsearch.kafka.indexer.mappers.AccessLogMapper;
-import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import javax.annotation.PostConstruct;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 
-/**
- * Created by dhyan on 1/30/16.
- */
-@Service
-public class MessageConversionService {
+import javax.annotation.PostConstruct;
 
-    @Autowired
+import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
+import org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+/**
+ * Created by dhyan on 1/29/16.
+ */
+
+public class AccessLogMessageHandlerServiceImpl extends BasicMessageHandler {
+
+    /**
+	 * @throws Exception
+	 */
+	public AccessLogMessageHandlerServiceImpl() throws Exception {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	@Autowired
     private ConsumerConfigService consumerConfigService ;
     @Autowired
     private ObjectMapper objectMapper;
@@ -34,13 +42,19 @@ public class MessageConversionService {
         expectedFormatter.setTimeZone(TimeZone.getTimeZone(expectedTimeZone));
     }
 
-    public String convertToJson(String rawMsg, Long offset) throws Exception{
+    @Override
+    public byte[] transformMessage(byte[] inputMessage, Long offset) throws Exception {
+		String outputMessageStr = convertToJson(new String(inputMessage, "UTF-8"), offset);
+		return outputMessageStr.getBytes(); 		
+    }
+
+	public String convertToJson(String rawMsg, Long offset) throws Exception{				
         String[] splitMsg =  rawMsg.split("\\|");
         for(int i=0; i < splitMsg.length; i++){
             splitMsg[i] = splitMsg[i].trim();
         }
 
-        AccessLogMapper accessLogMsgObj =accessLogMsgObj = new AccessLogMapper();
+        AccessLogMapper accessLogMsgObj = new AccessLogMapper();
         accessLogMsgObj.setRawMessage(rawMsg);
         accessLogMsgObj.getKafkaMetaData().setOffset(offset);
         accessLogMsgObj.getKafkaMetaData().setTopic(consumerConfigService.getTopic());
@@ -103,5 +117,7 @@ public class MessageConversionService {
             accessLogMsgObj.setTimeStamp(expectedFormatter.format(date));
         }
         return objectMapper.writeValueAsString(accessLogMsgObj);
-    }
+	}
+
+
 }

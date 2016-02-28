@@ -1,4 +1,4 @@
-package org.elasticsearch.kafka.indexer.mappers;
+package org.elasticsearch.kafka.indexer.examples;
 
 public class KafkaMetaDataMapper {
 
