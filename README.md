@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/BigDataDevs/kafka-elasticsearch-consumer.svg?branch=master)](https://travis-ci.org/BigDataDevs/kafka-elasticsearch-consumer)
+<a href='https://bintray.com/bigdatadevs/bigdatadevs-repo/elasticsearch-kafka-consumer/view?source=watch' alt='Get automatic notifications about new "elasticsearch-kafka-consumer" versions'><img src='https://www.bintray.com/docs/images/bintray_badge_color.png'></a>
 
 # Welcome to the kafka-elasticsearch-standalone-consumer wiki!
 

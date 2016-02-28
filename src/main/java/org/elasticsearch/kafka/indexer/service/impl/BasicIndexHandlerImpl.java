@@ -1,6 +1,6 @@
 package org.elasticsearch.kafka.indexer.service.impl;
 
-import org.elasticsearch.kafka.indexer.service.inter.IndexHandlerService;
+import org.elasticsearch.kafka.indexer.service.IIndexHandler;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,9 +10,7 @@ import java.util.HashMap;
 /**
  * Created by dhyan on 1/29/16.
  */
-@Service
-@Qualifier("BasicIndexHandlerImpl")
-public class BasicIndexHandlerImpl implements IndexHandlerService {
+public class BasicIndexHandlerImpl implements IIndexHandler {
     @Value("${indexName:test_index}")
     private String indexName;
     @Value("${esIndexType:test_index_type}")

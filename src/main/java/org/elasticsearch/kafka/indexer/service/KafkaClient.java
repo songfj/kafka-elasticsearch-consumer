@@ -1,8 +1,9 @@
-package org.elasticsearch.kafka.indexer.kafka;
+package org.elasticsearch.kafka.indexer.service;
 
 import com.netflix.curator.framework.CuratorFramework;
 import com.netflix.curator.framework.CuratorFrameworkFactory;
 import com.netflix.curator.retry.RetryNTimes;
+
 import kafka.api.FetchRequest;
 import kafka.api.FetchRequestBuilder;
 import kafka.api.OffsetRequest;
@@ -11,7 +12,7 @@ import kafka.common.OffsetAndMetadata;
 import kafka.common.TopicAndPartition;
 import kafka.javaapi.*;
 import kafka.javaapi.consumer.SimpleConsumer;
-import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

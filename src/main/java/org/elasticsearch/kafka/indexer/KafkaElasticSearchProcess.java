@@ -1,4 +1,4 @@
-package org.elasticsearch.kafka.indexer.process;
+package org.elasticsearch.kafka.indexer;
 
 import org.elasticsearch.kafka.indexer.service.JobManagerService;
 import org.slf4j.Logger;
