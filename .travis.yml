@@ -10,4 +10,5 @@ install:
 
 # Run the Build
 script:
-  - TERM=dumb ./gradlew clean bintrayUpload -Pbuild=${TRAVIS_BUILD_NUMBER} -Prelease=1.0
+  #- TERM=dumb ./gradlew clean bintrayUpload -Pbuild=${TRAVIS_BUILD_NUMBER} -Prelease=1.0
+  - TERM=dumb ./conditionalPublish.sh
