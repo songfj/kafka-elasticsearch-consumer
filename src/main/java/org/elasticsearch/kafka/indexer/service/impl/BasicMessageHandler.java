@@ -19,19 +19,20 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.lang3.StringUtils;
 import org.elasticsearch.kafka.indexer.FailedEventsLogger;
-import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
 import org.elasticsearch.kafka.indexer.service.ElasticSearchClientService;
 import org.elasticsearch.kafka.indexer.service.IIndexHandler;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 public class BasicMessageHandler implements IMessageHandler {
 
     @Autowired
     private ElasticSearchClientService elasticSearchClientService;
     @Autowired
+	@Qualifier("indexHandler")
     private IIndexHandler elasticIndexHandler;
     
     private TransportClient elasticSearchClient;

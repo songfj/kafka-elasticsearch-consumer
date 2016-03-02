@@ -12,7 +12,7 @@ apply plugin: 'application'
 
 group = 'org.elasticsearch.kafka.indexer'
 version = release + '.' + build
-mainClassName = "org.elasticsearch.kafka.indexer.process.KafkaElasticSearchProcess"
+mainClassName = "org.elasticsearch.kafka.indexer.KafkaElasticSearchProcess"
 
 //version = '${buildId}.${buildNumber}'
 
