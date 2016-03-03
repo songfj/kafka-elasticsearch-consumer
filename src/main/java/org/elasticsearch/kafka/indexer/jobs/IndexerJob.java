@@ -16,7 +16,7 @@ import org.elasticsearch.kafka.indexer.exception.KafkaClientNotRecoverableExcept
 import org.elasticsearch.kafka.indexer.exception.KafkaClientRecoverableException;
 import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
-import org.elasticsearch.kafka.indexer.service.KafkaClient;
+import org.elasticsearch.kafka.indexer.service.KafkaClientService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +28,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 	private ConsumerConfigService configService;
 	private IMessageHandler messageHandlerService ;
 	private TransportClient esClient;
-	public KafkaClient kafkaClient;
+	public KafkaClientService kafkaClient;
 	private long offsetForThisRound;
 	private long nextOffsetToProcess;
 	private boolean isStartingFirstTime;
@@ -47,7 +47,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		indexerJobStatus = new IndexerJobStatus(-1L, IndexerJobStatusEnum.Created, partition);
 		isStartingFirstTime = true;
 		initElasticSearch();
-		kafkaClient = new KafkaClient(configService, currentPartition);
+		kafkaClient = new KafkaClientService(configService, currentPartition);
 		indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Initialized);
 	}
 

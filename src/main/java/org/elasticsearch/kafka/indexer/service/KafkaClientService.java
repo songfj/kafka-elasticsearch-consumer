@@ -24,9 +24,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class KafkaClient {
+public class KafkaClientService {
 	
-	private static final Logger logger = LoggerFactory.getLogger(KafkaClient.class);
+	private static final Logger logger = LoggerFactory.getLogger(KafkaClientService.class);
 	private CuratorFramework curator;
 	private SimpleConsumer simpleConsumer;
 	private String kafkaClientId;
@@ -39,7 +39,7 @@ public class KafkaClient {
 	private String[] kafkaBrokersArray;
 
 	
-	public KafkaClient(ConsumerConfigService config, int partition) throws Exception{
+	public KafkaClientService(ConsumerConfigService config, int partition) throws Exception{
 		this.partition = partition;
 		this.topic = config.getTopic();
 		this.configService = config ;
