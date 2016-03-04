@@ -12,9 +12,11 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.kafka.indexer.FailedEventsLogger;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
+import org.elasticsearch.kafka.indexer.exception.KafkaClientNotRecoverableException;
+import org.elasticsearch.kafka.indexer.exception.KafkaClientRecoverableException;
 import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
-import org.elasticsearch.kafka.indexer.service.KafkaClient;
+import org.elasticsearch.kafka.indexer.service.KafkaClientService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,21 +28,18 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 	private ConsumerConfigService configService;
 	private IMessageHandler messageHandlerService ;
 	private TransportClient esClient;
-	public KafkaClient kafkaConsumerClient;
+	public KafkaClientService kafkaClient;
 	private long offsetForThisRound;
 	private long nextOffsetToProcess;
 	private boolean isStartingFirstTime;
-	private ByteBufferMessageSet byteBufferMsgSet = null;
-	private FetchResponse fetchResponse = null;
 	private final int currentPartition;
 	private final String currentTopic;
-
-
     private IndexerJobStatus indexerJobStatus;
     private volatile boolean shutdownRequested = false;
 
 
-	public IndexerJob(ConsumerConfigService configService, IMessageHandler messageHandlerService,int partition) throws Exception {
+	public IndexerJob(ConsumerConfigService configService, IMessageHandler messageHandlerService, int partition) 
+			throws Exception {
 		this.configService = configService;
 		this.currentPartition = partition;
 		this.currentTopic = configService.getTopic();
@@ -48,27 +47,14 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		indexerJobStatus = new IndexerJobStatus(-1L, IndexerJobStatusEnum.Created, partition);
 		isStartingFirstTime = true;
 		initElasticSearch();
-		initKafka();
+		kafkaClient = new KafkaClientService(configService, currentPartition);
 		indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Initialized);
-	}
-
-	void initKafka() throws Exception {
-		logger.info("Initializing Kafka for partition {}...",currentPartition);
-		String consumerGroupName = configService.getConsumerGroupName();
-		if (consumerGroupName.isEmpty()) {
-			consumerGroupName = "es_indexer_" + currentTopic + "_" + currentPartition;
-			logger.info("ConsumerGroupName was empty, set it to {} for partition {}", consumerGroupName,currentPartition);
-		}
-		String kafkaClientId = consumerGroupName  + "_" + currentPartition;
-		logger.info("kafkaClientId={} for partition {}", kafkaClientId,currentPartition);
-		kafkaConsumerClient = new KafkaClient(configService, kafkaClientId, currentPartition);
-		logger.info("Kafka client created and intialized OK for partition {}",currentPartition);
 	}
 
 	private void initElasticSearch() throws Exception {
 		String[] esHostPortList = configService.getEsHostPortList().trim().split(",");
-		logger.info("Initializing ElasticSearch... hostPortList={}, esClusterName={} for partition {}",
-				esHostPortList, configService.getEsClusterName(),currentPartition);
+		logger.info("Initializing ElasticSearch: hostPortList={}, esClusterName={}, partition={}",
+				esHostPortList, configService.getEsClusterName(), currentPartition);
 
 		// TODO add validation of host:port syntax - to avoid Runtime exceptions
 		try {
@@ -77,7 +63,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 				.build();
 			esClient = new TransportClient(settings);
 			for (String eachHostPort : esHostPortList) {
-				logger.info("adding [{}] to TransportClient for partition {}... ", eachHostPort,currentPartition);
+				logger.info("adding [{}] to TransportClient for partition {} ... ", eachHostPort, currentPartition);
 				esClient.addTransportAddress(
 					new InetSocketTransportAddress(
 						eachHostPort.split(":")[0].trim(), 
@@ -85,122 +71,17 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 					)
 				);
 			}
-			logger.info("ElasticSearch Client created and intialized OK for partition {}",currentPartition);
+			logger.info("ElasticSearch Client created and intialized OK for partition {}", currentPartition);
 		} catch (Exception e) {
-			logger.error("Exception when trying to connect and create ElasticSearch Client. Throwing the error. Error Message is::"
+			logger.error("Exception trying to connect and create ElasticSearch Client: "
 					+ e.getMessage());
 			throw e;
 		}
 	}
 
-	void reInitKafka() throws Exception {
-		for (int i = 0; i < configService.getNumberOfReinitAttempts(); i++) {
-			try {
-				logger.info("Re-initializing Kafka for partition {}, try # {}",currentPartition, i);
-				kafkaConsumerClient.close();
-				logger.info("Kafka client closed for partition {}. Will sleep for {} ms to allow kafka to stabilize",currentPartition, configService.getKafkaReinitSleepTimeMs());
-				Thread.sleep(configService.getKafkaReinitSleepTimeMs());
-				logger.info("Connecting to zookeeper again for partition {}",currentPartition);
-				kafkaConsumerClient.connectToZooKeeper();
-				kafkaConsumerClient.findLeader();
-				kafkaConsumerClient.initConsumer();
-				logger.info(".. trying to get offsets info for partition {} ... ", currentPartition);
-				this.checkKafkaOffsets();
-				logger.info("Kafka Reintialization  for partition {} finished OK",currentPartition);
-				return;
-			} catch (Exception e) {
-				if (i < configService.getNumberOfReinitAttempts()) {
-					logger.info("Re-initializing Kafka for partition {}, try # {} - still failing with Exception",
-						currentPartition, i);		
-				} else {
-					// if we got here - we failed to re-init Kafka after numberOfTries attempts - throw an exception out
-					logger.info("Kafka Re-initialization failed for partition {} after {} attempts - throwing exception: "
-							+ e.getMessage(), currentPartition, configService.getNumberOfReinitAttempts());
-					throw e;
-				}
-			}
-		}		
-	}
-
-
 	// a hook to be used by the Manager app to request a graceful shutdown of the job
 	public void requestShutdown() {
 		shutdownRequested = true;
-	}
-
-	public void checkKafkaOffsets() throws Exception {
-		try {
-			long currentOffset = kafkaConsumerClient.fetchCurrentOffsetFromKafka();
-			long earliestOffset = kafkaConsumerClient.getEarliestOffset();
-			long latestOffset = kafkaConsumerClient.getLastestOffset();
-			logger.info("Kafka offsets: currentOffset={}; earliestOffset={}; latestOffset={} for partition {}",
-					currentOffset, earliestOffset, latestOffset,currentPartition);
-		} catch (Exception e) {
-			logger.error("Exception from checkKafkaOffsets(): for partition {}" ,currentPartition, e);
-			throw e;
-		}
-
-	}
-
-	private void computeOffset() throws Exception {
-		logger.info("**** Computing Kafka offset *** for partition {}",currentPartition);
-		logger.info("startOffsetFrom={} for partition {}", configService.getStartOffsetFrom(),currentPartition);
-		if (configService.getStartOffsetFrom().equalsIgnoreCase("CUSTOM")) {
-			if (configService.getStartOffset() >= 0) {
-				offsetForThisRound = configService.getStartOffset();
-			} else {
-				throw new Exception(
-						"Custom start offset for topic [" + currentTopic + "], partition [" +
-								currentPartition + "] is < 0, which is not an acceptable value - please provide a valid offset; exiting");
-			}
-		} else if (configService.getStartOffsetFrom().equalsIgnoreCase("EARLIEST")) {
-			this.offsetForThisRound = kafkaConsumerClient.getEarliestOffset();
-		} else if (configService.getStartOffsetFrom().equalsIgnoreCase("LATEST")) {
-			offsetForThisRound = kafkaConsumerClient.getLastestOffset();
-		} else if (configService.getStartOffsetFrom().equalsIgnoreCase("RESTART")) {
-			logger.info("Restarting from where the Offset is left for topic {}, for partition {}",currentTopic,currentPartition);
-			offsetForThisRound = kafkaConsumerClient.fetchCurrentOffsetFromKafka();
-			if (offsetForThisRound == -1)
-			{
-				// if this is the first time this client tried to read - offset might be -1
-				// [ TODO figure out all cases when this could happen]
-				// try to get the Earliest offset and read from there - it may lead
-				// to processing events that may have already be processed - but it is safer than
-				// starting from the Latest offset in case not all events were processed before				
-				offsetForThisRound = kafkaConsumerClient.getEarliestOffset();
-				logger.info("offsetForThisRound is set to the EarliestOffset since currentOffset is -1; offsetForThisRound={} for partition {}",
-						offsetForThisRound,currentPartition);
-				// also store this as the CurrentOffset to Kafka - to avoid the multiple cycles through
-				// this logic in the case no events are coming to the topic for a long time and
-				// we always get currentOffset as -1 from Kafka
-				try {
-					kafkaConsumerClient.saveOffsetInKafka( offsetForThisRound, ErrorMapping.NoError());
-				} catch (Exception e) {
-					logger.error("Failed to commit the offset in Kafka, exiting for partition {}: " ,currentPartition, e);
-					throw new Exception("Failed to commit the offset in Kafka, exiting: " + e.getMessage(), e);
-				}
-
-			} else {
-				logger.info("offsetForThisRound is set to the CurrentOffset: {} for partition {}", offsetForThisRound,currentPartition);
-			}
-		}
-		long earliestOffset = kafkaConsumerClient.getEarliestOffset();
-		logger.info("EarliestOffset for partition {} is {}", currentPartition, earliestOffset);
-		// check for a corner case when the computed offset (either current or custom)
-		// is less than the Earliest offset - which could happen if some messages were 
-		// cleaned up from the topic/partition due to retention policy
-		if (offsetForThisRound < earliestOffset){
-			logger.warn("WARNING: computed offset (either current or custom) = {} is less than EarliestOffset = {}" +
-					"; setting offsetForThisRound to the EarliestOffset for partition {}", offsetForThisRound, earliestOffset,currentPartition);
-			offsetForThisRound = earliestOffset;
-			try {
-				kafkaConsumerClient.saveOffsetInKafka( offsetForThisRound, ErrorMapping.NoError());
-			} catch (Exception e) {
-				logger.error("Failed to commit the offset in Kafka, exiting for partition {} " ,currentPartition, e);
-				throw new Exception("Failed to commit the offset in Kafka, exiting: " + e.getMessage(), e);
-			}
-		}
-		logger.info("Resulting offsetForThisRound = {} for partition {}", offsetForThisRound,currentPartition);
 	}
 
 	public IndexerJobStatus call() {
@@ -229,13 +110,21 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
         		indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Stopped);
         		stopClients();
         		break;
+        	} catch (KafkaClientNotRecoverableException e) {
+        		// this is a non-recoverable error - stop the indexer job
+        		indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Failed);
+        		stopClients();
+        		break;
         	} catch (Exception e){
+        		// we will treat all other Exceptions as recoverable for now
         		logger.error("Exception when starting a new round of kafka Indexer job for partition {} - will try to re-init Kafka " ,
         				currentPartition, e);
         		// try to re-init Kafka connection first - in case the leader for this partition
         		// has changed due to a Kafka node restart and/or leader re-election
+        		// TODO decide if we want to re-try forever or fail here
+        		// TODO introduce another JobStatus to indicate that the job is in the REINIT state - if this state can take awhile
         		try {
-        			this.reInitKafka();
+        			kafkaClient.reInitKafka();
         		} catch (Exception e2) {
         			// we still failed - do not keep going anymore - stop and fix the issue manually,
             		// then restart the consumer again; It is better to monitor the job externally 
@@ -252,10 +141,8 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		return indexerJobStatus;
 	}
 	
-	
-	
+		
 	public void processBatch() throws Exception {
-		//checkKafkaOffsets();
 		long jobStartTime = 0l;
 		if (configService.isPerfReportingEnabled())
 			jobStartTime = System.currentTimeMillis();
@@ -266,67 +153,66 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 			offsetForThisRound = nextOffsetToProcess;
 		} else {
 			// if this is the first time we run the Consumer - get it from Kafka
-			try {
-				computeOffset();
-			} catch (Exception e) {
-				logger.error("Exception getting Kafka offsets for partition {}, will try to re-init Kafka ",
-						currentPartition, e);
-				reInitKafka();
-				// if re-initialization was successful - return and let the next job run try to
-				// pickup from where it was left of before
-				// if it failed - an exception will be thrown out of the reInitKafka()
-				return;
-			}
+			// do not handle exceptions here - they will be taken care of in the computeOffset()
+			// and exception will be thrown to the call() method which will decide if re-init
+			// of Kafka should be attempted or not
+			offsetForThisRound = kafkaClient.computeInitialOffset();
 			// mark this as not first time startup anymore - since we already saved correct offset
 			// to Kafka, and to avoid going through the logic of figuring out the initial offset
 			// every round if it so happens that there were no events from Kafka for a long time
 			isStartingFirstTime = false;
 			nextOffsetToProcess = offsetForThisRound;
 		}
+		//TODO  see if we are doing this too early - before we actually commit the offset
 		indexerJobStatus.setLastCommittedOffset(offsetForThisRound);
 		
-		try{
-			fetchResponse = kafkaConsumerClient.getMessagesFromKafka(offsetForThisRound);
-		} catch (Exception e){
-			// try re-process this batch
-			reInitKafka();
-			return;
-		}
-		if (configService.isPerfReportingEnabled()) {
-			long timeAfterKafaFetch = System.currentTimeMillis();
-			logger.debug("Fetched the reponse from Kafka. Approx time taken is {} ms for partition {}",
-					(timeAfterKafaFetch - jobStartTime),currentPartition);
-		}
+		// do not handle exceptions here - they will be taken care of in the computeOffset()
+		// and exception will be thrown to the call() method which will decide if re-init
+		// of Kafka should be attempted or not
+		FetchResponse fetchResponse = kafkaClient.getMessagesFromKafka(offsetForThisRound);
 		if (fetchResponse.hasError()) {
-			// Do things according to the error code
-			// TODO figure out what job status we should use - PartialFailure?? and when to clean it up?
-			handleError();
+			// check what kind of error this is - for most errors, we will try to re-init Kafka;
+			// in the case of OffsetOutOfRange - we may have to roll back to the earliest offset
+			short errorCode = fetchResponse.errorCode(currentTopic, currentPartition);
+			Long newNextOffsetToProcess = kafkaClient.handleErrorFromFetchMessages(errorCode, offsetForThisRound);
+			if (newNextOffsetToProcess != null) {
+				// this is the case when we have to re-set the nextOffsetToProcess
+				nextOffsetToProcess = newNextOffsetToProcess;
+			}
+			// return - will try to re-process the batch again 
 			return;
 		}
 		
-		// TODO harden the byteBufferMessageSEt life-cycle - make local var
-		byteBufferMsgSet = fetchResponse.messageSet(currentTopic, currentPartition);
+		ByteBufferMessageSet byteBufferMsgSet = fetchResponse.messageSet(currentTopic, currentPartition);
 		if (configService.isPerfReportingEnabled()) {
 			long timeAfterKafkaFetch = System.currentTimeMillis();
 			logger.debug("Completed MsgSet fetch from Kafka. Approx time taken is {} ms for partition {}",
-					(timeAfterKafkaFetch - jobStartTime) ,currentPartition);
+				(timeAfterKafkaFetch - jobStartTime) ,currentPartition);
 		}
 		if (byteBufferMsgSet.validBytes() <= 0) {
 			logger.debug("No events were read from Kafka - finishing this round of reads from Kafka for partition {}",currentPartition);
 			// TODO re-review this logic
-			long latestOffset = kafkaConsumerClient.getLastestOffset();
+			// check a corner case when consumer did not read any events form Kafka from the last current offset - 
+			// but the latestOffset reported by Kafka is higher than what consumer is trying to read from;
+			long latestOffset = kafkaClient.getLastestOffset();
 			if (latestOffset != offsetForThisRound) {
-				logger.warn("latestOffset [{}] is not the same as the current offsetForThisRound for this run [{}]" +
-						" - committing latestOffset to Kafka for partition {}", latestOffset, offsetForThisRound,currentPartition);
+				logger.warn("latestOffset={} for partition={} is not the same as the offsetForThisRound for this run: {}" + 
+					" - returning; will try reading messages form this offset again ", 
+					latestOffset, currentPartition, offsetForThisRound);
+				// TODO decide if we really need to do anything here - for now:
+				// do not do anything, just return, and let the consumer try to read again from the same offset;
+				// do not handle exceptions here - throw them out to the call() method which will decide if re-init
+				// of Kafka should be attempted or not
+				/*  
 				try {
-					kafkaConsumerClient.saveOffsetInKafka(
-						latestOffset, 
-						fetchResponse.errorCode(currentTopic, currentPartition));
+					kafkaClient.saveOffsetInKafka(latestOffset, ErrorMapping.NoError());
 				} catch (Exception e) {
-					// throw an exception as this will break reading messages in the next round
-					logger.error("Failed to commit the offset in Kafka - exiting for partition {} ",currentPartition, e);
-					throw e;
+					logger.error("Failed to commit nextOffsetToProcess={} after processing and posting to ES for partition={}: ",
+							nextOffsetToProcess, currentPartition, e);
+					throw new KafkaClientRecoverableException("Failed to commit nextOffsetToProcess=" + nextOffsetToProcess + 
+						" after processing and posting to ES; partition=" + currentPartition + "; error: " + e.getMessage(), e);
 				}
+				/*  */
 			}
 			return;
 		}
@@ -351,42 +237,29 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		}
 		
 		if (configService.isPerfReportingEnabled()) {
-			long timeAftEsPost = System.currentTimeMillis();
+			long timeAfterEsPost = System.currentTimeMillis();
 			logger.debug("Approx time to post of ElasticSearch: {} ms for partition {}",
-					(timeAftEsPost - jobStartTime),currentPartition);
+					(timeAfterEsPost - jobStartTime),currentPartition);
 		}
-		logger.info("Commiting offset: {} for partition {}", nextOffsetToProcess,currentPartition);
-		// TODO optimize getting of the fetchResponse.errorCode - in some cases there is no error, 
-		// so no need to call the API every time
+		logger.info("Commiting offset={} for partition={}", nextOffsetToProcess, currentPartition);
+		// do not handle exceptions here - throw them out to the call() method which will decide if re-init
+		// of Kafka should be attempted or not
 		try {
-			kafkaConsumerClient.saveOffsetInKafka(nextOffsetToProcess, fetchResponse.errorCode(currentTopic, currentPartition));
+			kafkaClient.saveOffsetInKafka(nextOffsetToProcess, ErrorMapping.NoError());
 		} catch (Exception e) {
-			logger.error("Failed to commit the Offset in Kafka after processing and posting to ES for partition {}: ",currentPartition, e);
-			logger.info("Trying to reInitialize Kafka and commit the offset again for partition {}...",currentPartition);
-			try {
-				reInitKafka();
-				logger.info("Attempting to commit the offset after reInitializing Kafka now..");
-				kafkaConsumerClient.saveOffsetInKafka(
-					nextOffsetToProcess, fetchResponse.errorCode(currentTopic,currentPartition));
-			} catch (Exception e2) {
-				logger.error("Failed to commit the Offset in Kafka even after reInitializing Kafka - exiting for partition {}: " ,currentPartition, e2);
-				// there is no point in continuing  - as we will keep re-processing events
-				// from the old offset. Throw an exception and exit;
-				// manually fix KAfka/Zookeeper env and re-start from a 
-				// desired , possibly custom, offset
-				throw e2;
-			}
+			logger.error("Failed to commit nextOffsetToProcess={} after processing and posting to ES for partition={}: ",
+				nextOffsetToProcess, currentPartition, e);
+			throw new KafkaClientRecoverableException("Failed to commit nextOffsetToProcess=" + nextOffsetToProcess + 
+				" after processing and posting to ES; partition=" + currentPartition + "; error: " + e.getMessage(), e);
 		}
 
 		if (configService.isPerfReportingEnabled()) {
 			long timeAtEndOfJob = System.currentTimeMillis();
-			logger.info("*** This round of ConsumerJob took about {} ms for partition {} ",
+			logger.info("*** This round of IndexerJob took about {} ms for partition {} ",
 					(timeAtEndOfJob - jobStartTime),currentPartition);
 		}
-		logger.info("*** Finished current round of ConsumerJob, processed messages with offsets [{}-{}] for partition {} ****",
-				offsetForThisRound, nextOffsetToProcess,currentPartition);
-		this.byteBufferMsgSet = null;
-		this.fetchResponse = null;
+		logger.info("*** Finished current round of IndexerJob, processed messages with offsets [{}-{}] for partition {} ****",
+				offsetForThisRound, nextOffsetToProcess, currentPartition);
 	}
 
 	private void reInitElasticSearch() throws InterruptedException, IndexerESException {
@@ -446,81 +319,6 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 	}
 	
 	
-	public void handleError() throws Exception {
-		// Do things according to the error code
-		short errorCode = fetchResponse.errorCode(
-				currentTopic, currentPartition);
-		logger.error("Error fetching events from Kafka - handling it. Error code: {}  for partition {}"
-				,errorCode, currentPartition);
-		if (errorCode == ErrorMapping.BrokerNotAvailableCode()) {
-			logger.error("BrokerNotAvailableCode error happened when fetching message from Kafka. ReInitiating Kafka Client for partition {}",currentPartition);
-			reInitKafka();
-		} else if (errorCode == ErrorMapping.InvalidFetchSizeCode()) {
-			logger.error("InvalidFetchSizeCode error happened when fetching message from Kafka. ReInitiating Kafka Client for partition {}",currentPartition);
-			reInitKafka();
-		} else if (errorCode == ErrorMapping.InvalidMessageCode()) {
-			logger.error("InvalidMessageCode error happened when fetching message from Kafka, not handling it. Returning for partition {}",currentPartition);
-		} else if (errorCode == ErrorMapping.LeaderNotAvailableCode()) {
-			logger.error("LeaderNotAvailableCode error happened when fetching message from Kafka. ReInitiating Kafka Client for partition {}",currentPartition);
-			reInitKafka();
-		} else if (errorCode == ErrorMapping.MessageSizeTooLargeCode()) {
-			logger.error("MessageSizeTooLargeCode error happened when fetching message from Kafka, not handling it. Returning for partition {}",currentPartition);
-		} else if (errorCode == ErrorMapping.NotLeaderForPartitionCode()) {
-			logger.error("NotLeaderForPartitionCode error happened when fetching message from Kafka, not handling it. ReInitiating Kafka Client for partition {}",currentPartition);
-			reInitKafka();
-		} else if (errorCode == ErrorMapping.OffsetMetadataTooLargeCode()) {
-			logger.error("OffsetMetadataTooLargeCode error happened when fetching message from Kafka, not handling it. Returning for partition {}",currentPartition);
-		} else if (errorCode == ErrorMapping.OffsetOutOfRangeCode()) {
-			logger.error("OffsetOutOfRangeCode error fetching messages for partition={}, offsetForThisRound={}",
-					currentPartition, offsetForThisRound);
-			long earliestOffset = kafkaConsumerClient.getEarliestOffset();
-			// The most likely reason for this error is that the consumer is trying to read events from an offset
-			// that has already expired from the Kafka topic due to retention period;
-			// In that case the only course of action is to start processing events from the EARLIEST available offset
-			logger.info("OffsetOutOfRangeCode error: setting offset for partition {} to the EARLIEST possible offset: {}", 
-					currentPartition, earliestOffset);
-			nextOffsetToProcess = earliestOffset;
-			try {
-				kafkaConsumerClient.saveOffsetInKafka(earliestOffset, errorCode);
-			} catch (Exception e) {
-				// throw an exception as this will break reading messages in the next round
-				// TODO verify that the IndexerJob is stopped cleanly in this case
-				logger.error("Failed to commit offset in Kafka after OffsetOutOfRangeCode - exiting for partition {} ", currentPartition, e);
-				throw e;
-			}
-			return;
-
-		} else if (errorCode == ErrorMapping.ReplicaNotAvailableCode()) {
-			logger.error("ReplicaNotAvailableCode error happened when fetching message from Kafka - re-init-ing Kafka... for partition {}",currentPartition);
-			reInitKafka();
-			return;
-
-		} else if (errorCode == ErrorMapping.RequestTimedOutCode()) {
-			logger.error("RequestTimedOutCode error happened when fetching message from Kafka - re-init-ing Kafka... for partition {}",currentPartition);
-			reInitKafka();
-			return;
-
-		} else if (errorCode == ErrorMapping.StaleControllerEpochCode()) {
-			logger.error("StaleControllerEpochCode error happened when fetching message from Kafka, not handling it. Returning for partition {}",currentPartition);
-			return;
-
-		} else if (errorCode == ErrorMapping.StaleLeaderEpochCode()) {
-			logger.error("StaleLeaderEpochCode error happened when fetching message from Kafka, not handling it. Returning for partition {}",currentPartition);
-			return;
-
-		} else if (errorCode == ErrorMapping.UnknownCode()) {
-			logger.error("UnknownCode error happened when fetching message from Kafka - re-init-ing Kafka... for partition {}",currentPartition);
-			reInitKafka();
-			return;
-
-		} else if (errorCode == ErrorMapping.UnknownTopicOrPartitionCode()) {
-			logger.error("UnknownTopicOrPartitionCode error happened when fetching message from Kafka - re-init-ing Kafka...for partition {}",currentPartition);
-			reInitKafka();
-			return;
-
-		}
-
-	}
 	public void stopClients() {
 		logger.info("About to stop ES client for topic {}, partition {}", 
 				currentTopic, currentPartition);
@@ -528,8 +326,8 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 			esClient.close();
 		logger.info("About to stop Kafka client for topic {}, partition {}", 
 				currentTopic, currentPartition);
-		if (kafkaConsumerClient != null)
-			kafkaConsumerClient.close();
+		if (kafkaClient != null)
+			kafkaClient.close();
 		logger.info("Stopped Kafka and ES clients for topic {}, partition {}", 
 				currentTopic, currentPartition);
 	}
