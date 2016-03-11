@@ -126,5 +126,9 @@ bintray {
     }
     configurations = ['archives']
 }
+run {
+  // support passing -Dsystem.property=value to bootRun task
+  systemProperties = System.properties
+}
 
 
