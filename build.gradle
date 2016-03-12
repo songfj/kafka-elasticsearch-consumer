@@ -1,3 +1,9 @@
+buildscript {
+    repositories { jcenter() }
+    dependencies {
+        classpath 'se.transmode.gradle:gradle-docker:1.2'
+    }
+}
 plugins {
     id "com.jfrog.bintray" version "1.3.1"
     id "com.jfrog.artifactory" version "4.0.0"
@@ -8,13 +14,13 @@ apply plugin: 'idea'
 apply plugin: 'jacoco'
 apply plugin: 'maven-publish'
 apply plugin: 'application'
+apply plugin: 'docker'
 
 
 group = 'org.elasticsearch.kafka.indexer'
 version = release + '.' + build
 mainClassName = "org.elasticsearch.kafka.indexer.KafkaESIndexerProcess"
 
-//version = '${buildId}.${buildNumber}'
 
 description = """kafka-elasticsearch-consumer"""
 def artifact_provider_url       = hasProperty('artifact_provider_url') ? artifact_provider_url : System.getenv('artifact_provider_url')
@@ -72,7 +78,7 @@ processResources {
 }
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '2.3'
+    gradleVersion = '2.5'
 }
 
 jar {
@@ -129,6 +135,11 @@ bintray {
 run {
   // support passing -Dsystem.property=value to bootRun task
   systemProperties = System.properties
+docker {
+    baseImage = 'java:8'
 }
 
-
+task createDockerContainer(type: Docker, dependsOn: distTar) {
+    applicationName = project.name
+    addFile (tasks.distTar.archivePath, "/opt/")
+}
