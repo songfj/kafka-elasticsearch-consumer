@@ -1,6 +1,6 @@
 package org.elasticsearch.kafka.indexer.jobs;
 
-import org.elasticsearch.kafka.indexer.jmx.IndexerJobStatusMBean;
+import org.elasticsearch.kafka.indexer.service.jmx.IndexerJobStatusMBean;
 
 public class IndexerJobStatus implements IndexerJobStatusMBean{
 

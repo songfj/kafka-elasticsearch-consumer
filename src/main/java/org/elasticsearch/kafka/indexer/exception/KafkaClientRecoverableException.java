@@ -1,22 +1,22 @@
 /**
   * @author marinapopova
-  * Sep 25, 2015
+  * Mar 01, 2016
  */
-package org.elasticsearch.kafka.indexer;
+package org.elasticsearch.kafka.indexer.exception;
 
-public class IndexerESException extends Exception {
+public class KafkaClientRecoverableException extends Exception {
 
 	/**
 	 * 
 	 */
-	public IndexerESException() {
+	public KafkaClientRecoverableException() {
 		// TODO Auto-generated constructor stub
 	}
 
 	/**
 	 * @param message
 	 */
-	public IndexerESException(String message) {
+	public KafkaClientRecoverableException(String message) {
 		super(message);
 		// TODO Auto-generated constructor stub
 	}
@@ -24,7 +24,7 @@ public class IndexerESException extends Exception {
 	/**
 	 * @param cause
 	 */
-	public IndexerESException(Throwable cause) {
+	public KafkaClientRecoverableException(Throwable cause) {
 		super(cause);
 		// TODO Auto-generated constructor stub
 	}
@@ -33,7 +33,7 @@ public class IndexerESException extends Exception {
 	 * @param message
 	 * @param cause
 	 */
-	public IndexerESException(String message, Throwable cause) {
+	public KafkaClientRecoverableException(String message, Throwable cause) {
 		super(message, cause);
 		// TODO Auto-generated constructor stub
 	}
@@ -44,7 +44,7 @@ public class IndexerESException extends Exception {
 	 * @param enableSuppression
 	 * @param writableStackTrace
 	 */
-	public IndexerESException(String message, Throwable cause,
+	public KafkaClientRecoverableException(String message, Throwable cause,
 			boolean enableSuppression, boolean writableStackTrace) {
 		super(message, cause, enableSuppression, writableStackTrace);
 		// TODO Auto-generated constructor stub

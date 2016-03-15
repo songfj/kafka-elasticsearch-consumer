@@ -9,5 +9,8 @@ install:
 #  “${TRAVIS_JDK_VERSION}” && echo TRAVIS_TAG = "${TRAVIS_TAG}"
 
 # Run the Build
+notifications:
+  email: bigdatadev@dhyans.com
 script:
-  - TERM=dumb ./gradlew clean bintrayUpload -Pbuild=${TRAVIS_BUILD_NUMBER} -Prelease=0.0.0
+  #- TERM=dumb ./gradlew clean bintrayUpload -Pbuild=${TRAVIS_BUILD_NUMBER} -Prelease=1.0
+  - TERM=dumb ./conditionalPublish.sh

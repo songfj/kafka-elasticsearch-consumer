@@ -1,4 +1,4 @@
-package org.elasticsearch.kafka.indexer.jmx;
+package org.elasticsearch.kafka.indexer.service.jmx;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;

@@ -1,21 +1,21 @@
-package org.elasticsearch.kafka.indexer.jmx;
+package org.elasticsearch.kafka.indexer.service.jmx;
+
+import org.elasticsearch.kafka.indexer.jobs.IndexerJobStatus;
+import org.elasticsearch.kafka.indexer.jobs.IndexerJobStatusEnum;
+import org.elasticsearch.kafka.indexer.service.JobManagerService;
 
 import java.util.List;
 
-import org.elasticsearch.kafka.indexer.jobs.IndexerJobManager;
-import org.elasticsearch.kafka.indexer.jobs.IndexerJobStatus;
-import org.elasticsearch.kafka.indexer.jobs.IndexerJobStatusEnum;
-
 public class KafkaEsIndexerStatus implements KafkaEsIndexerStatusMXBean {
 
-	protected IndexerJobManager indexerJobManager;
+	protected JobManagerService jobManagerService;
 	private int failedJobs;
 	private int cancelledJobs;
 	private int stoppedJobs;
 	private int hangingJobs;
 
-	public KafkaEsIndexerStatus(IndexerJobManager indexerJobManager) {
-		this.indexerJobManager = indexerJobManager;
+	public KafkaEsIndexerStatus(JobManagerService jobmanagerService) {
+		this.jobManagerService = jobmanagerService;
 	}
 
 	public boolean isAlive() {
@@ -23,12 +23,12 @@ public class KafkaEsIndexerStatus implements KafkaEsIndexerStatusMXBean {
 	}
 
 	public List<IndexerJobStatus> getStatuses() {
-		return indexerJobManager.getJobStatuses();
+		return jobManagerService.getJobStatuses();
 	}
 
 	public int getCountOfFailedJobs() {
 		failedJobs = 0;
-		for (IndexerJobStatus jobStatus : indexerJobManager.getJobStatuses()) {
+		for (IndexerJobStatus jobStatus : jobManagerService.getJobStatuses()) {
 			if (jobStatus.getJobStatus().equals(IndexerJobStatusEnum.Failed)){
 				failedJobs++;
 			}
@@ -38,7 +38,7 @@ public class KafkaEsIndexerStatus implements KafkaEsIndexerStatusMXBean {
 
 	public int getCountOfStoppedJobs() {
 		stoppedJobs = 0;
-		for (IndexerJobStatus jobStatus : indexerJobManager.getJobStatuses()) {
+		for (IndexerJobStatus jobStatus : jobManagerService.getJobStatuses()) {
 			if (jobStatus.getJobStatus().equals(IndexerJobStatusEnum.Stopped)){
 				stoppedJobs++;
 			}
@@ -48,7 +48,7 @@ public class KafkaEsIndexerStatus implements KafkaEsIndexerStatusMXBean {
 	
 	public int getCountOfHangingJobs() {
 		hangingJobs = 0;
-		for (IndexerJobStatus jobStatus : indexerJobManager.getJobStatuses()) {
+		for (IndexerJobStatus jobStatus : jobManagerService.getJobStatuses()) {
 			if (jobStatus.getJobStatus().equals(IndexerJobStatusEnum.Hanging)){
 				hangingJobs++;
 			}
@@ -58,7 +58,7 @@ public class KafkaEsIndexerStatus implements KafkaEsIndexerStatusMXBean {
 
 	public int getCountOfCancelledJobs() {
 		cancelledJobs = 0;
-		for (IndexerJobStatus jobStatus : indexerJobManager.getJobStatuses()) {
+		for (IndexerJobStatus jobStatus : jobManagerService.getJobStatuses()) {
 			if (jobStatus.getJobStatus().equals(IndexerJobStatusEnum.Cancelled)){
 				cancelledJobs++;
 			}
