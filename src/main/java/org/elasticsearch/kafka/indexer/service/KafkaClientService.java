@@ -18,7 +18,7 @@ import org.elasticsearch.kafka.indexer.exception.KafkaClientNotRecoverableExcept
 import org.elasticsearch.kafka.indexer.exception.KafkaClientRecoverableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,21 +29,66 @@ import javax.annotation.PostConstruct;
 
 public class KafkaClientService {
 	
-    @Autowired
-    private ConsumerConfigService config;
-    
-	private static final Logger logger = LoggerFactory.getLogger(KafkaClientService.class);
+ 	private static final Logger logger = LoggerFactory.getLogger(KafkaClientService.class);
+	@Value("${topic:my_log_topic}")
+	private String topic;
+    // Kafka ZooKeeper's IP Address/HostName : port list
+    @Value("${kafkaZookeeperList:localhost:2181}")
+    private String kafkaZookeeperList;
+    // Zookeeper session timeout in MS
+    @Value("${zkSessionTimeoutMs:1000}")
+    private int zkSessionTimeoutMs;
+    // Zookeeper connection timeout in MS
+    @Value("${zkConnectionTimeoutMs:15000}")
+    private int zkConnectionTimeoutMs;
+    // Zookeeper number of retries when creating a curator client
+    @Value("${zkCuratorRetryTimes:3}")
+    private int zkCuratorRetryTimes;
+    // Zookeeper: time in ms between re-tries when creating a Curator
+    @Value("${zkCuratorRetryDelayMs:2000}")
+    private int zkCuratorRetryDelayMs;
+    @Value("${kafkaBrokersList:localhost:9092}")
+    private String kafkaBrokersList;
+	private String[] kafkaBrokersArray;
+    @Value("${kafkaReinitSleepTimeMs:10000}")
+    private int kafkaReinitSleepTimeMs;
+    @Value("${numberOfReinitTries:2}")
+    private int numOfReinitAttempts;
+    // the below two parameters define the range of partitions to be processed by this app
+    // first partition in the Kafka Topic from which the messages have to be processed
+    @Value("${firstPartition:0}")
+    private   short firstPartition;
+    // last partition in the Kafka Topic from which the messages have to be processed
+    @Value("${lastPartition:3}")
+    private   short lastPartition;
+    // Option from where the message fetching should happen in Kafka
+    // Values can be: CUSTOM/EARLIEST/LATEST/RESTART.
+    // If 'CUSTOM' is set, then 'startOffset' has to be set as an int value
+    @Value("${startOffsetFrom:RESTART}")
+    private  String startOffsetFrom;
+    // int value of the offset from where the message processing should happen
+    @Value("${startOffset:0}")
+    private   int startOffset;
+    // Name of the Kafka Consumer Group
+    @Value("${consumerGroupName:kafka_es_indexer}")
+    private   String consumerGroupName;
+    // SimpleConsumer socket bufferSize
+    @Value("${kafkaSimpleConsumerBufferSizeBytes:31457280}")
+    private   int kafkaSimpleConsumerBufferSizeBytes;
+    // SimpleConsumer socket timeout in MS
+    @Value("${kafkaSimpleConsumerSocketTimeoutMs:1000}")
+    private   int kafkaSimpleConsumerSocketTimeoutMs;
+    // FetchRequest's minBytes value
+    @Value("${kafkaFetchSizeMinBytes:31457280}")
+    private   int kafkaFetchSizeMinBytes;
+
 	private CuratorFramework curator;
 	private SimpleConsumer simpleConsumer;
 	private String kafkaClientId;
-	private String topic;
 	private final int partition;
 	private String leaderBrokerHost;
 	private int leaderBrokerPort;
 	private String leaderBrokerURL;
-	private ConsumerConfigService configService;
-	private String[] kafkaBrokersArray;
-
 	
 	public KafkaClientService(int partition) throws Exception{
 		this.partition = partition;
@@ -51,19 +96,12 @@ public class KafkaClientService {
 	
     @PostConstruct
     public void init() throws Exception {
-		this.topic = config.getTopic();
-		this.configService = config;
 		logger.info("Initializing KafkaClient for topic={}, partition={} ", topic, partition);
-		String consumerGroupName = configService.getConsumerGroupName();
-		if (consumerGroupName.isEmpty()) {
-			consumerGroupName = "es_indexer_" + topic + "_" + partition;
-			logger.info("ConsumerGroupName was empty, set it to {} for partition {}", consumerGroupName, partition);
-		}
-		this.kafkaClientId = consumerGroupName  + "_" + partition;
-		kafkaBrokersArray = config.getKafkaBrokersList().trim().split(",");
+		kafkaClientId = consumerGroupName  + "_" + partition;
+		kafkaBrokersArray = kafkaBrokersList.trim().split(",");
 		logger.info("### KafkaClient Config: ###");
-		logger.info("kafkaZookeeperList: {}", config.getKafkaZookeeperList());
-		logger.info("kafkaBrokersList: {}", config.getKafkaBrokersList());
+		logger.info("kafkaZookeeperList: {}", kafkaZookeeperList);
+		logger.info("kafkaBrokersList: {}", kafkaBrokersList);
 		logger.info("kafkaClientId: {}", kafkaClientId);
 		logger.info("topic: {}", topic);
 		logger.info("partition: {}", partition);
@@ -74,14 +112,13 @@ public class KafkaClientService {
 
 			
 	public void reInitKafka() throws Exception {
-		int numOfReinitAttempts = configService.getNumberOfReinitAttempts();
 		for (int i = 0; i < numOfReinitAttempts; i++) {
 			try {
 				logger.info("Re-initializing KafkaClient for partition {}, try # {}", partition, i);
 				close();
 				logger.info("Kafka client closed for partition {}. Will sleep for {} ms to allow kafka to stabilize",
-						partition, configService.getKafkaReinitSleepTimeMs());
-				Thread.sleep(configService.getKafkaReinitSleepTimeMs());
+						partition, kafkaReinitSleepTimeMs);
+				Thread.sleep(kafkaReinitSleepTimeMs);
 				logger.info("Connecting to zookeeper again for partition {}", partition);
 				connectToZooKeeper();
 				findLeader();
@@ -108,8 +145,8 @@ public class KafkaClientService {
 
 	public void connectToZooKeeper() throws Exception {
 		try {
-			curator = CuratorFrameworkFactory.newClient(configService.getKafkaZookeeperList(), configService.getZkSessionTimeoutMs(), configService.getZkConnectionTimeoutMs(),
-					new RetryNTimes(configService.getZkCuratorRetryTimes(), configService.getZkCuratorRetryDelayMs()));
+			curator = CuratorFrameworkFactory.newClient(kafkaZookeeperList, zkSessionTimeoutMs, zkConnectionTimeoutMs,
+					new RetryNTimes(zkCuratorRetryTimes, zkCuratorRetryDelayMs));
 			curator.start();
 			logger.info("Connected to Kafka Zookeeper successfully");
 		} catch (Exception e) {
@@ -120,8 +157,10 @@ public class KafkaClientService {
 
 	public void initConsumer() throws Exception{
 		try{
-			this.simpleConsumer = new SimpleConsumer(leaderBrokerHost, leaderBrokerPort, configService.getKafkaSimpleConsumerSocketTimeoutMs(), configService.getKafkaSimpleConsumerBufferSizeBytes(),kafkaClientId);
-			logger.info("Initialized Kafka Consumer successfully for partition {}",partition);
+			this.simpleConsumer = new SimpleConsumer(
+					leaderBrokerHost, leaderBrokerPort, kafkaSimpleConsumerSocketTimeoutMs, 
+					kafkaSimpleConsumerBufferSizeBytes, kafkaClientId);
+			logger.info("Initialized Kafka Consumer successfully for partition {}", partition);
 		}
 		catch(Exception e){
 			logger.error("Failed to initialize Kafka Consumer: " + e.getMessage());
@@ -163,13 +202,13 @@ public class KafkaClientService {
 			if (responseErrorCode != null && responseErrorCode != ErrorMapping.NoError()) {
 				// TODO 4: verify this is the only condition that means that the commit was successful
 				throw new KafkaClientRecoverableException("Error saving offset=" + offset + " for partition=" + partition +
-						": errorCode is not good: " + responseErrorCode);
+					": errorCode is not good: " + responseErrorCode);
 			}
 		}
 		catch(Exception e){
 			logger.error("Error commiting offset={} for partition={}: ", offset, partition, e);
 			throw new KafkaClientRecoverableException("Error saving offset=" + offset + " for partition=" + 
-					partition + "; error: " + e.getMessage(), e) ;
+				partition + "; error: " + e.getMessage(), e) ;
 		}
 		
 	}
@@ -183,8 +222,7 @@ public class KafkaClientService {
 			String brokerStr = kafkaBrokersArray[i];
 			String[] brokerStrTokens = brokerStr.split(":");
 			if (brokerStrTokens.length < 2) {
-				logger.error(
-					"Failed to find Kafka leader broker - wrong config, not enough tokens: brokerStr={}", 
+				logger.error("Failed to find Kafka leader broker - wrong config, not enough tokens: brokerStr={}", 
 					brokerStr);
 				throw new Exception("Failed to find Kafka leader broker - wrong config, not enough tokens: brokerStr=" + 
 					brokerStr);
@@ -196,10 +234,10 @@ public class KafkaClientService {
 		}
 		if (leaderPartitionMetaData == null || leaderPartitionMetaData.leader() == null) {
 			logger.error("Failed to find leader for topic=[{}], partition=[{}], kafka brokers list: [{}]: PartitionMetadata is null",
-					topic, partition, configService.getKafkaBrokersList());
+					topic, partition, kafkaBrokersList);
 			throw new Exception("Failed to find leader for topic=[" + topic + 
 					"], partition=[" + partition + 
-					", kafka brokers list: [" + configService.getKafkaBrokersList() +
+					", kafka brokers list: [" + kafkaBrokersList +
 					"]: currentPartitionMetadata is null");
 			
 		}		
@@ -219,10 +257,8 @@ public class KafkaClientService {
 		try {
 			int kafkaBrokerPort = Integer.parseInt(kafkaBrokerPortStr);
 			leadFindConsumer = new SimpleConsumer(
-					kafkaBrokerHost, kafkaBrokerPort,
-					configService.getKafkaSimpleConsumerSocketTimeoutMs(),
-					configService.getKafkaSimpleConsumerBufferSizeBytes(),
-					"leaderLookup");
+					kafkaBrokerHost, kafkaBrokerPort, kafkaSimpleConsumerSocketTimeoutMs,
+					kafkaSimpleConsumerBufferSizeBytes, "leaderLookup");
 			List<String> topics = new ArrayList<String>();
 			topics.add(this.topic);
 			TopicMetadataRequest req = new TopicMetadataRequest(topics);
@@ -326,9 +362,9 @@ public class KafkaClientService {
 		long earliestOffset = getEarliestOffset();
 		// TODO 6: use Enum for startOffsetFrom values
 		logger.info("**** Computing Kafka offset *** for partition={}, startOffsetFrom={}, earliestOffset={}", 
-				partition, configService.getStartOffsetFrom(), earliestOffset);
-		if (configService.getStartOffsetFrom().equalsIgnoreCase("CUSTOM")) {
-			long customOffset = configService.getStartOffset();
+				partition, startOffsetFrom, earliestOffset);
+		if (startOffsetFrom.equalsIgnoreCase("CUSTOM")) {
+			long customOffset = startOffset;
 			logger.info("Restarting from the CUSTOM offset={} for topic={}, partition={}",
 					customOffset, topic, partition);
 			if (customOffset >= 0) {
@@ -338,15 +374,15 @@ public class KafkaClientService {
 					"for topic [" + topic + "], partition [" + partition + 
 					"] is < 0, which is not an acceptable value; exiting");
 			}
-		} else if (configService.getStartOffsetFrom().equalsIgnoreCase("EARLIEST")) {
+		} else if (startOffsetFrom.equalsIgnoreCase("EARLIEST")) {
 			logger.info("Restarting from the EARLIEST offset={} for topic={}, partition={}",
 					earliestOffset, topic, partition);
 			offsetForThisRound = getEarliestOffset();
-		} else if (configService.getStartOffsetFrom().equalsIgnoreCase("LATEST")) {
+		} else if (startOffsetFrom.equalsIgnoreCase("LATEST")) {
 			offsetForThisRound = getLastestOffset();
 			logger.info("Restarting from the LATEST offset={} for topic={}, partition={}",
 					offsetForThisRound, topic, partition);
-		} else if (configService.getStartOffsetFrom().equalsIgnoreCase("RESTART")) {
+		} else if (startOffsetFrom.equalsIgnoreCase("RESTART")) {
 			offsetForThisRound = fetchCurrentOffsetFromKafka();
 			logger.info("Restarting from the last committed offset={} for topic={}, partition={}",
 					offsetForThisRound, topic, partition);
@@ -399,7 +435,7 @@ public class KafkaClientService {
 		try{
 			FetchRequest req = new FetchRequestBuilder()
 				.clientId(kafkaClientId)
-				.addFetch(topic, partition, offset, configService.getKafkaFetchSizeMinBytes())
+				.addFetch(topic, partition, offset, kafkaFetchSizeMinBytes)
 				.build();
 			FetchResponse fetchResponse = simpleConsumer.fetch(req);
 			return fetchResponse;
