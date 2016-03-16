@@ -18,14 +18,20 @@ import org.elasticsearch.kafka.indexer.exception.KafkaClientNotRecoverableExcept
 import org.elasticsearch.kafka.indexer.exception.KafkaClientRecoverableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.PostConstruct;
+
 public class KafkaClientService {
 	
+    @Autowired
+    private ConsumerConfigService config;
+    
 	private static final Logger logger = LoggerFactory.getLogger(KafkaClientService.class);
 	private CuratorFramework curator;
 	private SimpleConsumer simpleConsumer;
@@ -39,11 +45,15 @@ public class KafkaClientService {
 	private String[] kafkaBrokersArray;
 
 	
-	public KafkaClientService(ConsumerConfigService config, int partition) throws Exception{
+	public KafkaClientService(int partition) throws Exception{
 		this.partition = partition;
+	}
+	
+    @PostConstruct
+    public void init() throws Exception {
 		this.topic = config.getTopic();
-		this.configService = config ;
-		logger.info("Creating KafkaClient for topic={}, partition={} ", topic, partition);
+		this.configService = config;
+		logger.info("Initializing KafkaClient for topic={}, partition={} ", topic, partition);
 		String consumerGroupName = configService.getConsumerGroupName();
 		if (consumerGroupName.isEmpty()) {
 			consumerGroupName = "es_indexer_" + topic + "_" + partition;
@@ -60,7 +70,8 @@ public class KafkaClientService {
 		connectToZooKeeper();
 		findLeader();
 		initConsumer();
-	}
+    }
+
 			
 	public void reInitKafka() throws Exception {
 		int numOfReinitAttempts = configService.getNumberOfReinitAttempts();

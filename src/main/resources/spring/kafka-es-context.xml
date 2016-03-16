@@ -16,5 +16,8 @@
     <bean id="objectMapper" class="com.fasterxml.jackson.databind.ObjectMapper"/>
 	<bean id="messageHandler" class="org.elasticsearch.kafka.indexer.examples.RawLogMessageHandlerServiceImpl" />
     <bean id="indexHandler" class="org.elasticsearch.kafka.indexer.service.impl.BasicIndexHandlerImpl"/>
+	<bean id="kafkaClientService" 
+		class="org.elasticsearch.kafka.indexer.service.KafkaClientService" 
+		scope="prototype"/>
 	
 </beans>

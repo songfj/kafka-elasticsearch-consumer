@@ -38,7 +38,8 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
     private volatile boolean shutdownRequested = false;
 
 
-	public IndexerJob(ConsumerConfigService configService, IMessageHandler messageHandlerService, int partition) 
+	public IndexerJob(ConsumerConfigService configService, IMessageHandler messageHandlerService, 
+			KafkaClientService kafkaClient, int partition) 
 			throws Exception {
 		this.configService = configService;
 		this.currentPartition = partition;
@@ -46,8 +47,8 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		this.messageHandlerService = messageHandlerService ;
 		indexerJobStatus = new IndexerJobStatus(-1L, IndexerJobStatusEnum.Created, partition);
 		isStartingFirstTime = true;
+		this.kafkaClient = kafkaClient;
 		initElasticSearch();
-		kafkaClient = new KafkaClientService(configService, currentPartition);
 		indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Initialized);
 	}
 
