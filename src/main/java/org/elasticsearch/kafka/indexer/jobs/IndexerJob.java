@@ -5,11 +5,6 @@ import kafka.javaapi.FetchResponse;
 import kafka.javaapi.message.ByteBufferMessageSet;
 
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.client.transport.NoNodeAvailableException;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.ImmutableSettings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.kafka.indexer.FailedEventsLogger;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
 import org.elasticsearch.kafka.indexer.exception.KafkaClientNotRecoverableException;
@@ -27,7 +22,6 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 	private static final Logger logger = LoggerFactory.getLogger(IndexerJob.class);
 	private ConsumerConfigService configService;
 	private IMessageHandler messageHandlerService ;
-	private TransportClient esClient;
 	public KafkaClientService kafkaClient;
 	private long offsetForThisRound;
 	private long nextOffsetToProcess;
@@ -38,7 +32,8 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
     private volatile boolean shutdownRequested = false;
 
 
-	public IndexerJob(ConsumerConfigService configService, IMessageHandler messageHandlerService, int partition) 
+	public IndexerJob(ConsumerConfigService configService, IMessageHandler messageHandlerService, 
+			KafkaClientService kafkaClient, int partition) 
 			throws Exception {
 		this.configService = configService;
 		this.currentPartition = partition;
@@ -46,37 +41,10 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		this.messageHandlerService = messageHandlerService ;
 		indexerJobStatus = new IndexerJobStatus(-1L, IndexerJobStatusEnum.Created, partition);
 		isStartingFirstTime = true;
-		initElasticSearch();
-		kafkaClient = new KafkaClientService(configService, currentPartition);
+		this.kafkaClient = kafkaClient;
 		indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Initialized);
-	}
-
-	private void initElasticSearch() throws Exception {
-		String[] esHostPortList = configService.getEsHostPortList().trim().split(",");
-		logger.info("Initializing ElasticSearch: hostPortList={}, esClusterName={}, partition={}",
-				esHostPortList, configService.getEsClusterName(), currentPartition);
-
-		// TODO add validation of host:port syntax - to avoid Runtime exceptions
-		try {
-			Settings settings = ImmutableSettings.settingsBuilder()
-				.put("cluster.name", configService.getEsClusterName())
-				.build();
-			esClient = new TransportClient(settings);
-			for (String eachHostPort : esHostPortList) {
-				logger.info("adding [{}] to TransportClient for partition {} ... ", eachHostPort, currentPartition);
-				esClient.addTransportAddress(
-					new InetSocketTransportAddress(
-						eachHostPort.split(":")[0].trim(), 
-						Integer.parseInt(eachHostPort.split(":")[1].trim())
-					)
-				);
-			}
-			logger.info("ElasticSearch Client created and intialized OK for partition {}", currentPartition);
-		} catch (Exception e) {
-			logger.error("Exception trying to connect and create ElasticSearch Client: "
-					+ e.getMessage());
-			throw e;
-		}
+		logger.info("Created IndexerJob for topic={}, partition={};  messageHandlerService={}; kafkaClient={}", 
+			currentTopic, partition, messageHandlerService, kafkaClient);
 	}
 
 	// a hook to be used by the Manager app to request a graceful shutdown of the job
@@ -96,8 +64,9 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
                     	"Cought interrupted event in IndexerJob for partition=" + currentPartition + " - stopping");
                 }
         		logger.debug("******* Starting a new batch of events from Kafka for partition {} ...", currentPartition);
-        		indexerJobStatus.setJobStatus(IndexerJobStatusEnum.InProgress);
+        		
         		processBatch();
+        		indexerJobStatus.setJobStatus(IndexerJobStatusEnum.InProgress);	
         		// sleep for configured time
         		// TODO improve sleep pattern
         		Thread.sleep(configService.getConsumerSleepBetweenFetchsMs() * 1000);
@@ -152,6 +121,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 			// we can rely on the in-memory nextOffsetToProcess variable
 			offsetForThisRound = nextOffsetToProcess;
 		} else {
+			indexerJobStatus.setJobStatus(IndexerJobStatusEnum.InProgress);
 			// if this is the first time we run the Consumer - get it from Kafka
 			// do not handle exceptions here - they will be taken care of in the computeOffset()
 			// and exception will be thrown to the call() method which will decide if re-init
@@ -217,7 +187,9 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 			return;
 		}
 		logger.debug("Starting to prepare for post to ElasticSearch for partition {}",currentPartition);
-		nextOffsetToProcess = messageHandlerService.prepareForPostToElasticSearch(byteBufferMsgSet.iterator());
+		//Need to save nextOffsetToProcess in temporary field, 
+		//and save it after successful execution of indexIntoESWithRetries method 
+		long proposedNextOffsetToProcess = messageHandlerService.prepareForPostToElasticSearch(byteBufferMsgSet.iterator());
 
 		if (configService.isPerfReportingEnabled()) {
 			long timeAtPrepareES = System.currentTimeMillis();
@@ -229,12 +201,27 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 			return;
 		}
 
+		// TODO we are loosing the ability to set Job's status to HANGING in case ES is unreachable and 
+		// re-connect to ES takes awhile ... See if it is possible to re-introduce it in another way
 		try {
-			this.indexIntoESWithRetries();
+			logger.info("About to post messages to ElasticSearch for partition={}, offsets {}-->{} ", 
+				currentPartition, offsetForThisRound, proposedNextOffsetToProcess-1);
+			messageHandlerService.postToElasticSearch();
 		} catch (IndexerESException e) {
-			// re-process batch
+			// TODO re-process batch - right now, we fail the whole batch in the call() and shutdown the Job
+			logger.error("Error posting messages to Elastic Search for offsets {}-->{} " + 
+				" in partition={} - will re-try processing the batch; error: {}", 
+				offsetForThisRound, proposedNextOffsetToProcess-1, currentPartition, e.getMessage());			
 			return;
+		} catch (ElasticsearchException e) {
+			// we are assuming that these exceptions are data-specific - continue and commit the offset, 
+			// but be aware that ALL messages from this batch are NOT indexed into ES
+			logger.error("Error posting messages to ElasticSearch for offset {}-->{} in partition {} skipping them: ",
+					offsetForThisRound, proposedNextOffsetToProcess-1, currentPartition, e);
+			FailedEventsLogger.logFailedEvent(offsetForThisRound, proposedNextOffsetToProcess-1, currentPartition, e.getDetailedMessage(), null);
 		}
+		
+		nextOffsetToProcess = proposedNextOffsetToProcess;
 		
 		if (configService.isPerfReportingEnabled()) {
 			long timeAfterEsPost = System.currentTimeMillis();
@@ -262,74 +249,11 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 				offsetForThisRound, nextOffsetToProcess, currentPartition);
 	}
 
-	private void reInitElasticSearch() throws InterruptedException, IndexerESException {
-		for (int i=1; i<=configService.getNumberOfEsIndexingRetryAttempts(); i++ ){
-			Thread.sleep(configService.getEsIndexingRetrySleepTimeMs());
-			logger.warn("Retrying connect to ES and re-process batch, partition {}, try# {}", 
-					currentPartition, i);
-			try {
-				this.initElasticSearch();
-				// we succeeded - get out of the loop
-				break;
-			} catch (Exception e2) {
-				if (i<configService.getNumberOfEsIndexingRetryAttempts()){
-					// do not fail yet - will re-try again
-					indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Hanging);
-					logger.warn("Retrying connect to ES and re-process batch, partition {}, try# {} - failed again", 
-							currentPartition, i);						
-				} else {
-					//we've exhausted the number of retries - throw a IndexerESException to stop the IndexerJob thread
-					logger.error("Retrying connect to ES and re-process batch after connection failure, partition {}, "
-							+ "try# {} - failed after the last retry; Will keep retrying, ", 
-							currentPartition, i);						
-					
-					indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Hanging);
-					throw new IndexerESException("Indexing into ES failed due to connectivity issue to ES, partition: " +
-						currentPartition);
-				}
-			}
-		}
-	}
-
-	
-	private void indexIntoESWithRetries() throws IndexerESException, Exception {
-		try {
-			logger.info("posting the messages to ElasticSearch for partition {}...",currentPartition);
-			messageHandlerService.postToElasticSearch();
-		} catch (NoNodeAvailableException e) {
-			// ES cluster is unreachable or down. Re-try up to the configured number of times
-			// if fails even after then - shutdown the current IndexerJob
-			logger.error("Error posting messages to Elastic Search for offset {}-->{} " + 
-					" in partition {}:  NoNodeAvailableException - ES cluster is unreachable, will retry to connect after sleeping for {}ms", 
-					offsetForThisRound, nextOffsetToProcess-1, configService.getEsIndexingRetrySleepTimeMs(), currentPartition, e);
-			
-			reInitElasticSearch();
-			//throws Exception to re-process current batch
-			throw new IndexerESException();
-			
-		} catch (ElasticsearchException e) {
-			// we are assuming that other exceptions are data-specific
-			// -  continue and commit the offset, 
-			// but be aware that ALL messages from this batch are NOT indexed into ES
-			logger.error("Error posting messages to Elastic Search for offset {}-->{} in partition {} skipping them: ",
-					offsetForThisRound, nextOffsetToProcess-1, currentPartition, e);
-			FailedEventsLogger.logFailedEvent(offsetForThisRound, nextOffsetToProcess - 1, currentPartition, e.getDetailedMessage(), null);
-		}
-	
-	}
-	
-	
 	public void stopClients() {
-		logger.info("About to stop ES client for topic {}, partition {}", 
-				currentTopic, currentPartition);
-		if (esClient != null)
-			esClient.close();
-		logger.info("About to stop Kafka client for topic {}, partition {}", 
-				currentTopic, currentPartition);
+		logger.info("About to stop Kafka client for topic {}, partition {}", currentTopic, currentPartition);
 		if (kafkaClient != null)
 			kafkaClient.close();
-		logger.info("Stopped Kafka and ES clients for topic {}, partition {}", 
-				currentTopic, currentPartition);
+		logger.info("Stopped Kafka client for topic {}, partition {}", currentTopic, currentPartition);
 	}
 	
 	public IndexerJobStatus getIndexerJobStatus() {

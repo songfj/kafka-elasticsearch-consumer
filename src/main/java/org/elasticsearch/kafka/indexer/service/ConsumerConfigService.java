@@ -30,7 +30,7 @@ public  class ConsumerConfigService {
     private   int zkCuratorRetryDelayMs;
     @Value("${kafkaBrokersList:localhost:9092}")
     private   String kafkaBrokersList;
-    // Kafka Topic from which the message has to be processed
+    // Kafka Topic to process messages from
     @Value("${topic:my_log_topic}")
     private   String topic;
     // the below two parameters define the range of partitions to be processed by this app

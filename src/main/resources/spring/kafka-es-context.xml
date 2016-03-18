@@ -14,7 +14,15 @@
     	ignore-resource-not-found="true" />
     
     <bean id="objectMapper" class="com.fasterxml.jackson.databind.ObjectMapper"/>
-	<bean id="messageHandler" class="org.elasticsearch.kafka.indexer.examples.RawLogMessageHandlerServiceImpl" />
-    <bean id="indexHandler" class="org.elasticsearch.kafka.indexer.service.impl.BasicIndexHandlerImpl"/>
+	<bean id="messageHandler" 
+		class="org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler"
+		scope="prototype"/>
+    <bean id="indexHandler" class="org.elasticsearch.kafka.indexer.service.impl.BasicIndexHandler"/>
+	<bean id="kafkaClientService" 
+		class="org.elasticsearch.kafka.indexer.service.KafkaClientService" 
+		scope="prototype"/>
+	<bean id="elasticSearchClientService" 
+		class="org.elasticsearch.kafka.indexer.service.ElasticSearchClientService" 
+		scope="prototype"/>
 	
 </beans>

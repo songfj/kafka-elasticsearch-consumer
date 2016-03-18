@@ -10,7 +10,7 @@ import java.util.HashMap;
 /**
  * Created by dhyan on 1/29/16.
  */
-public class BasicIndexHandlerImpl implements IIndexHandler {
+public class BasicIndexHandler implements IIndexHandler {
     @Value("${indexName:test_index}")
     private String indexName;
     @Value("${esIndexType:test_index_type}")
