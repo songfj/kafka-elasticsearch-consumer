@@ -1,9 +1,6 @@
 package org.elasticsearch.kafka.indexer.examples;
 
 import org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Service;
 
 /**
  * Created by dhyan on 1/29/16.
@@ -11,10 +8,8 @@ import org.springframework.stereotype.Service;
  * This is an example of a customized Message Handler - via extending the BasicMessageHandler
  * 
  */
-@Service
-@Scope(value = ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-public class RawLogMessageHandlerServiceImpl extends BasicMessageHandler {
 
+public class RawLogMessageHandlerImpl extends BasicMessageHandler {
 
     @Override
     public byte[] transformMessage(byte[] inputMessage, Long offset) throws Exception {
