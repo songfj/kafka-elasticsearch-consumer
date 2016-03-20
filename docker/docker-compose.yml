@@ -1,5 +1,7 @@
 elasticsearch:
   build: ./elasticsearch
+  name: elasticsearch
+  hostname: elasticsearch
   volumes:
     - ./elasticsearch/data:/data
     - ./elasticsearch/data/config:/elasticsearch/config
@@ -7,29 +9,54 @@ elasticsearch:
     - 9200:9200
     - 9300:9300
 
+indexer:
+  build: ../build/docker
+  volumes:
+    - logs:/var/log
+  links:
+    - zookeeper:zk
+    - kafka:kafka
+    - elasticsearch:es
 
+#zookeeper:
+#  image: wurstmeister/zookeeper
+#  name: zookeeper
+#  ports:
+#    - "2181:2181"
 
-#indexer:
-#  hostname: kafka-elasticsearch-consumer
-#  image: ../build/docker
-#  volumes:
-#    - ./kafka-elasticsearch-consumer:/opt
-#  links:
-#    - kafka
-#    - elasticsearch
 zookeeper:
-  image: wurstmeister/zookeeper
+  image: confluent/zookeeper
+  name: zookeeper
+  hostname: zookeeper
   ports:
     - "2181:2181"
+
 kafka:
   image: wurstmeister/kafka
+  name: kafka
+  hostname: kafka
   ports:
     - "9092:9092"
   links:
     - zookeeper:zk
   environment:
-    KAFKA_ADVERTISED_HOST_NAME: 192.168.5.20
-    KAFKA_CREATE_TOPICS: "my_log_topic:1:1"
+    KAFKA_DEFAULT_TOPIC: "my_log_topic"
+    KAFKA_ADVERTISED_HOST_NAME: "kafka"
+    KAFKA_HOST_NAME: "kafka"
+    KAFKA_ADVERTISED_PORT: 9092
+
   volumes:
     - /var/run/docker.sock:/var/run/docker.sock
+
+
+kafkamanager:
+  image: sheepkiller/kafka-manager:latest
+  ports:
+    - "9000:9000"
+  links:
+    - zookeeper
+    - kafka
+  environment:
+    ZK_HOSTS: zookeeper:2181
+    APPLICATION_SECRET: 1234
 
