@@ -37,6 +37,7 @@ public class KafkaClientService {
 	private String leaderBrokerURL;
 	private ConsumerConfigService configService;
 	private String[] kafkaBrokersArray;
+    private int leaderFindRetryCount =5;
 
 	
 	public KafkaClientService(ConsumerConfigService config, int partition) throws Exception{
@@ -165,25 +166,10 @@ public class KafkaClientService {
 		
 	public PartitionMetadata findLeader() throws Exception {
 		logger.info("Looking for Kafka leader broker for partition {}...", partition);
-		PartitionMetadata leaderPartitionMetaData = null;
-		// try to find leader META info, trying each broker until the leader is found - 
+		// try to find leader META info, trying each broker until the leader is found -
 		// in case some of the leaders are down
-		for (int i=0; i<kafkaBrokersArray.length; i++) {
-			String brokerStr = kafkaBrokersArray[i];
-			String[] brokerStrTokens = brokerStr.split(":");
-			if (brokerStrTokens.length < 2) {
-				logger.error(
-					"Failed to find Kafka leader broker - wrong config, not enough tokens: brokerStr={}", 
-					brokerStr);
-				throw new Exception("Failed to find Kafka leader broker - wrong config, not enough tokens: brokerStr=" + 
-					brokerStr);
-			}
-			leaderPartitionMetaData = findLeaderWithBroker(brokerStrTokens[0], brokerStrTokens[1]);
-			// we found the leader - no need to query the rest of the brokers, get out of the loop
-			if (leaderPartitionMetaData != null)
-				break;
-		}
-		if (leaderPartitionMetaData == null || leaderPartitionMetaData.leader() == null) {
+        PartitionMetadata leaderPartitionMetaData = findLeaderWithRetry();
+        if (leaderPartitionMetaData == null || leaderPartitionMetaData.leader() == null) {
 			logger.error("Failed to find leader for topic=[{}], partition=[{}], kafka brokers list: [{}]: PartitionMetadata is null",
 					topic, partition, configService.getKafkaBrokersList());
 			throw new Exception("Failed to find leader for topic=[" + topic + 
@@ -198,9 +184,34 @@ public class KafkaClientService {
 		logger.info("Found leader: leaderBrokerURL={}", leaderBrokerURL);
 		return leaderPartitionMetaData;
 	}
-	
-	private PartitionMetadata findLeaderWithBroker(
-			String kafkaBrokerHost, String kafkaBrokerPortStr) {
+
+    private PartitionMetadata findLeaderWithRetry() throws Exception {
+        PartitionMetadata leaderPartitionMetaData = null ;
+        int retryCount =leaderFindRetryCount ;
+        while(retryCount >0){
+            for (int i=0; i<kafkaBrokersArray.length; i++) {
+                String brokerStr = kafkaBrokersArray[i];
+                String[] brokerStrTokens = brokerStr.split(":");
+                if (brokerStrTokens.length < 2) {
+                    logger.error(
+                            "Failed to find Kafka leader broker - wrong config, not enough tokens: brokerStr={}",
+                            brokerStr);
+                    throw new Exception("Failed to find Kafka leader broker - wrong config, not enough tokens: brokerStr=" +
+                            brokerStr);
+                }
+                leaderPartitionMetaData = findLeaderWithBroker(brokerStrTokens[0], brokerStrTokens[1]);
+                // we found the leader - no need to query the rest of the brokers, get out of the loop
+                if (leaderPartitionMetaData != null)
+                    return leaderPartitionMetaData;
+            }
+            retryCount-- ;
+            logger.error("Leader find attempt {} failed .Retrying after sleep",5-retryCount);
+            Thread.sleep(1000);
+        }
+        return leaderPartitionMetaData;
+    }
+
+    private PartitionMetadata findLeaderWithBroker(String kafkaBrokerHost, String kafkaBrokerPortStr) {
 		logger.info("Looking for leader for partition {} using Kafka Broker={}:{}, topic={}",
 				partition, kafkaBrokerHost, kafkaBrokerPortStr, topic);
 		PartitionMetadata leaderPartitionMetadata = null;

@@ -6,7 +6,9 @@ build/
 .idea
 .classpath
 .gradle/
-.settings/
+docker/logs
+docker/src
+docker/elasticsearch/data
 
 *.iml
 kafkaESConsumerLocal.properties
