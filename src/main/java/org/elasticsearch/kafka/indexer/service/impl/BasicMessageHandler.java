@@ -16,9 +16,10 @@ import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.common.lang3.StringUtils;
 import org.elasticsearch.kafka.indexer.FailedEventsLogger;
+import org.elasticsearch.kafka.indexer.exception.IndexerESException;
 import org.elasticsearch.kafka.indexer.service.ElasticSearchClientService;
 import org.elasticsearch.kafka.indexer.service.IIndexHandler;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
@@ -30,18 +31,19 @@ import org.springframework.beans.factory.annotation.Qualifier;
 public class BasicMessageHandler implements IMessageHandler {
 
     @Autowired
+	@Qualifier("elasticSearchClientService")
     private ElasticSearchClientService elasticSearchClientService;
     @Autowired
 	@Qualifier("indexHandler")
     private IIndexHandler elasticIndexHandler;
     
-    private TransportClient elasticSearchClient;
 	private static final Logger logger = LoggerFactory.getLogger(BasicMessageHandler.class);
 	private Map<String, BulkRequestBuilder> bulkRequestBuilders;
-	
+
     @PostConstruct
     public void init() {
-        elasticSearchClient = elasticSearchClientService.getElasticSearchClient() ;
+	   logger.info("BasicMessageHandler initialized Ok; using ElasticSearchClientService instance = {}", 
+			   elasticSearchClientService);
     }
 
 	public long prepareForPostToElasticSearch(Iterator<MessageAndOffset> messageAndOffsetIterator){
@@ -96,10 +98,9 @@ public class BasicMessageHandler implements IMessageHandler {
  		IndexRequestBuilder indexRequestBuilder = null;
  		// if uuid for messages is provided - index with uuid
  		if (StringUtils.isNotEmpty(eventUUID)) {
-		indexRequestBuilder = elasticSearchClient.prepareIndex(
-				indexName, indexType, eventUUID);
+ 			indexRequestBuilder = elasticSearchClientService.prepareIndex(indexName, indexType, eventUUID);
  		} else {
- 			indexRequestBuilder = elasticSearchClient.prepareIndex(indexName, indexType);			
+ 			indexRequestBuilder = elasticSearchClientService.prepareIndex(indexName, indexType);			
  		}
 		indexRequestBuilder.setSource(jsonEvent);
 		if(needsRouting){
@@ -111,13 +112,12 @@ public class BasicMessageHandler implements IMessageHandler {
     public BulkRequestBuilder getBulkRequestBuilder(String key){
 		BulkRequestBuilder bulkRequestBuilder = bulkRequestBuilders.get(key);
 		if (bulkRequestBuilder == null) {
-			bulkRequestBuilder = elasticSearchClient.prepareBulk();
+			bulkRequestBuilder = elasticSearchClientService.prepareBulk();
 			bulkRequestBuilders.put(key, bulkRequestBuilder);
 		}
 		return bulkRequestBuilder;
 	}
 	
-
 	@Override
 	public boolean postToElasticSearch() throws Exception {
 		for (Map.Entry<String, BulkRequestBuilder> entry: bulkRequestBuilders.entrySet()){
@@ -129,7 +129,8 @@ public class BasicMessageHandler implements IMessageHandler {
 		return true;
 	}
 
-    private void postOneBulkRequestToES(BulkRequestBuilder bulkRequestBuilder) {
+    private void postOneBulkRequestToES(BulkRequestBuilder bulkRequestBuilder) 
+    		throws InterruptedException, IndexerESException {
         BulkResponse bulkResponse = null;
         BulkItemResponse bulkItemResp = null;
         //Nothing/NoMessages to post to ElasticSearch
@@ -139,8 +140,16 @@ public class BasicMessageHandler implements IMessageHandler {
         }
         try{
             bulkResponse = bulkRequestBuilder.execute().actionGet();
-        }
-        catch(ElasticsearchException e){
+        } catch (NoNodeAvailableException e) {
+        	// ES cluster is unreachable or down. Re-try up to the configured number of times
+        	// if fails even after then - throw an exception out to retry indexing the batch
+        	logger.error("Error posting messages to ElasticSearch: " + 
+				"NoNodeAvailableException - ES cluster is unreachable, will try to re-connect after sleeping ... ", e);		
+        	elasticSearchClientService.reInitElasticSearch();
+        	//even if re-init of ES succeeded - throw an Exception to re-process the current batch
+        	throw new IndexerESException("Recovering after an NoNodeAvailableException posting messages to Elastic Search " + 
+    			" - will re-try processing current batch");
+        } catch(ElasticsearchException e){
             logger.error("Failed to post messages to ElasticSearch: " + e.getMessage(), e);
             throw e;
         }

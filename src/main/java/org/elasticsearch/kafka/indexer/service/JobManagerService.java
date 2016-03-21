@@ -50,8 +50,9 @@ public class JobManagerService {
         try {
             for (int partition=firstPartition; partition<=lastPartition; partition++){
                 logger.info("Creating IndexerJob for partition={}", partition);
-                IMessageHandler messageHandlerService = (IMessageHandler) indexerContext.getBean("messageHandler");
-                IndexerJob pIndexerJob = new IndexerJob(consumerConfigService, messageHandlerService,partition);
+                IMessageHandler messageHandlerService = (IMessageHandler)indexerContext.getBean("messageHandler");                
+                KafkaClientService kafkaClientService = (KafkaClientService)indexerContext.getBean("kafkaClientService", partition);
+                IndexerJob pIndexerJob = new IndexerJob(consumerConfigService, messageHandlerService, kafkaClientService, partition);
                 indexerJobs.put(partition, pIndexerJob);
             }
         } catch (Exception e) {
@@ -62,8 +63,6 @@ public class JobManagerService {
         // now start them all
         indexerJobFutures = executorService.invokeAll(indexerJobs.values());
     }
-
-
 
     public List<IndexerJobStatus> getJobStatuses(){
         List <IndexerJobStatus> indexerJobStatuses = new ArrayList<IndexerJobStatus>();
@@ -86,10 +85,5 @@ public class JobManagerService {
         }
         logger.info("Stop() finished");
     }
-
-
-
-
-
 
 }

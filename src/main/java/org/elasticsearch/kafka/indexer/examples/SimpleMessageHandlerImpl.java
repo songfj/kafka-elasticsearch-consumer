@@ -29,7 +29,6 @@ public class SimpleMessageHandlerImpl implements IMessageHandler {
 	 * 
 	 */
 	public SimpleMessageHandlerImpl() {
-		// TODO Auto-generated constructor stub
 	}
 
 	/* (non-Javadoc)

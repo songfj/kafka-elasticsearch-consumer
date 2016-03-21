@@ -29,74 +29,111 @@
 
 # How to use ? 
 
-### Running as a standard Jar 
+### Running via Gradle 
 
 **1. Download the code into a `$INDEXER_HOME` dir.
 
-**2. cp `$INDEXER_HOME`/src/main/resources/kafka-es-indexer.properties.template /your/absolute/path/kafka-es-indexer.properties file - update all relevant properties as explained in the comments
+**2. cp `$INDEXER_HOME`/src/main/resources/config/kafka-es-indexer.properties /your/absolute/path/kafka-es-indexer.properties file - update all relevant properties as explained in the comments
 
-**3. cp `$INDEXER_HOME`/src/main/resources/logback.xml.template /your/absolute/path/logback.xml
+**3. cp `$INDEXER_HOME`/src/main/resources/config/logback.xml /your/absolute/path/logback.xml
 
  specify directory you want to store logs in:
 	<property name="LOG_DIR" value="/tmp"/>
 	
  adjust values of max sizes and number of log files as needed
 
-**4. build/create the app jar (make sure you have MAven installed):
+**4. modify $INDEXER_HOME`/src/main/resources/spring/kafka-es-contect.xml if needed
 
-		cd $INDEXER_HOME
-     	mvn clean package
+	If you want to use custom IMessageHandler and/or IIndexHandler classes - specify them in the following config:
+	(make sure to only modify the class name, not the beans' name/scope)
+	
+	<bean id="messageHandler" 
+		class="org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler"
+		scope="prototype"/>
+    <bean id="indexHandler" class="org.elasticsearch.kafka.indexer.service.impl.BasicIndexHandler"/>
+	
+		
+**5. build the app:
+
+	cd $INDEXER_HOME
+    ./gradlew clean jar
      	
- The kafka-es-indexer-2.0.jar will be created in the $INDEXER_HOME/bin.
- All dependencies will be placed into $INDEXER_HOME/bin/lib.
- All JAR dependencies are linked via kafka-es-indexer-2.0.jar manifest.
+ The kafka-es-indexer-2.0.jar will be created in the $INDEXER_HOME/build/libs/ dir.
 
-**5. edit your $INDEXER_HOME/run_indexer.sh script:
-		-- make it executable if needed (chmod a+x $INDEXER_HOME/run_indexer.sh)
-		-- update properties marked with "CHANGE FOR YOUR ENV" comments - according to your environment
+**5. make sure your $JAVA_HOME env variable is set (use JDK1.8 or above);
+	you may want to adjust JVM options and other values in the gradlew script and gradle.properties file
 
-**6. run the app [use JDK1.8] :  
+**6. run the app:
 
-		./run_indexer.sh
+	./gradlew run -Dindexer.properties=/your/absolute/path//kafka-es-indexer.properties -Dlogback.configurationFile=/your/absolute/path/logback.xml
  
+ 	OR, if you want to run with the default properties and logback files packaged in the /src/main/resources/config/ dir:
+	./gradlew run
+	
 # Versions
 
-### Kafka Version: 0.8.2.1
+* Kafka Version: 0.8.2.1
 
-### ElasticSearch: > 1.5.1
+* ElasticSearch: 1.5.x -1.6.x (2.0 is in the development)
 
-### Scala Version for Kafka Build: 2.10.0
+* Scala Version for Kafka Build: 2.10.0
+
+* JDK 1.8
 
 # Configuration
 
-Indexer app configuration is specified in the kafka_es_indexer.properties file, which should be created from a provided template, kafka-es-indexer.properties.template. All properties are described in the template:
+Indexer application properties are specified in the kafka_es_indexer.properties file:
 
-[kafka-es-indexer.properties.template](https://github.com/ppine7/kafka-elasticsearch-standalone-consumer/blob/master/src/main/resources/kafka-es-indexer.properties.template)
+[kafka-es-indexer.properties](https://github.com/BigDataDevs/kafka-elasticsearch-consumer/blob/master/src/main/resources/config/kafka-es-indexer.properties)
 
-Logging properties are specified in the logback.xml file, which should be created from a provided template, logback.xml.template: 
+Logging properties are specified in the logback.xml file: 
+[logback.xml](https://github.com/BigDataDevs/kafka-elasticsearch-consumer/blob/master/src/main/resources/config/logback.xml)
 
-[logback.xml.template](https://github.com/ppine7/kafka-elasticsearch-standalone-consumer/blob/master/src/main/resources/logback.xml.template)
+Indexer application Spring configuration is specified in the kafka-es-context.xml:
+[kafka-es-context.xml](https://github.com/BigDataDevs/kafka-elasticsearch-consumer/blob/master/src/main/resources/spring/kafka-es-context.xml)
+
+# Customization
+
+Indexer applicatin can be easily customized. Two main areas for customizations are: 
+* message handling/conversion
+	examples of use cases for this customization:
+	-- your incoming messages are not in a JSON format compatible with the expected ES message formats
+	-- your messages have to be enreached with data from other sources (via other meta-data lookups, etc.)
+	-- you want to selectively index messages into ES based on some custom criteria
+	
+* ES index management
+	examples of use cases for this customization:
+	-- you have to index messages into different ES indexes based on custom logic/ properties of the messages
+	-- you have to determine index type based on custom logic and/or mesage properties
+
+## Message handling customization options
+
+Message handling can be customized by using IMessageHandler interface and/or BasicMessageHandler implementation classes:
+
+* `org.elasticsearch.kafka.indexer.service.IMessageHandler` is an interface that defines main methods for reading events from Kafka, processing them, and bulk-intexing into ElasticSearch. One can implement all or some of the methods if custom behavior is needed. In most cases, the only method you would want to customize would be the `transformMessage(...)` method
+
+* `org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler` is a basic implementation of the IMessageHandler interface. It does not modify incoming messages in any way and batch-indexes them into ES as is, in the 'UTF-8' format. 
 
 
-# Message Handler Class
+ There are two main approaches to do the customization:
+  
+-- Approach #1: implement the IMessageHandler interface, inject the BasicMessageHandler into your implementation class and delegate most of the methods to the BasicMessageHandler class, overwriting only the transformMessage() method (and maybe others on very rare occasions). See `org.elasticsearch.kafka.indexer.examples.SimpleMessageHandlerImpl` for an example of such customization. While this approach a slightly more complex than the second one, it provides you with an easy way to mock some or all services while unit testing your custom logic. 
 
-*  `org.elasticsearch.kafka.consumer.MessageHandler` is an Abstract class that has most of the functionality of reading data from Kafka and batch-indexing into ElasticSearch already implemented. It has one abstract method, `transformMessage()`, that can be overwritten in the concrete sub-classes to customize message transformation before posting into ES
+-- Approach #2: extend the BasicMessageHandler class and overwrite transformMessage() method (and others if needed). See `org.elasticsearch.kafka.indexer.examples.RawLogMessageHandlerImpl` for an example of such customization. This is a simpler to implement approach, but is less flexible for Unit testing, since the constructor of the BasicMessageHandler will be called early on.
 
-* `org.elasticsearch.kafka.consumer.messageHandlers.RawMessageStringHandler` is a simple concrete sub-class of the MessageHAndler that sends messages into ES with no additional transformation, as is, in the 'UTF-8' format
 
-* Usually, its effective to Index the message in JSON format in ElasticSearch. This can be done using a Mapper Class and transforming the message from Kafka by overriding/implementing the `transformMessage()` method. An example can be found here: `org.elasticsearch.kafka.consumer.messageHandlers.AccessLogMessageHandler`
+* _**Do remember to specify your custom message handler class in the kafka-es-context.xml file. By default, BasicMessageHandler will be used**_
 
-* _**Do remember to set the newly created message handler class in the `messageHandlerClass` property in the kafka-es-indexer.properties file.**_
+## ES index management customization 
+Index and index type management/determination customization can be done by using the IIndexHandler interface and/or BasicIdexManager implementation classes:
 
-# IndexHandler Interface and basic implementation
+* `org.elasticsearch.kafka.indexer.service.IIndexHandler` is an interface that defines two methods: getIndexName(params) and getIndexType(params). You can customize both or either of them as needed 
 
-*  `org.elasticsearch.kafka.consumer.IndexHandler` is an interface that defines two methods: getIndexName(params) and getIndexType(params). 
+* `org.elasticsearch.kafka.indexer.service.impl.BasicIndexHandler` is a simple imlementation of this interface that returnes indexName and indexType values as configured in the kafka-es-indexer.properties file. 
 
-* `org.elasticsearch.kafka.consumer.BasicIndexHandler` is a simple imlementation of this interface that returnes indexName and indexType values as configured in the kafkaESConsumer.properties file. 
+* you can either implement the interface or extend the basic impl class - either approach is simple enough
 
-* one might want to create a custom implementation of IndexHandler if, for example, index name and type are not static for all incoming messages but depend on the event data - for example customerId, orderId, etc. In that case, pass all info that is required to perform that custom index determination logic as a Map of parameters into the getIndexName(params) and getIndexType(params) methods (or pass NULL if no such data is required)
-
-* _**Do remember to set the index handler class in the `indexHandlerClass` property in the kafka-es-indexer.properties file. By default, BasicIndexHandler is used**_
+* _**Do remember to specify your custom index handler class in the kafka-es-context.xml file. By default, BasicIndexHandler is used**_
 
 # License
 
@@ -119,4 +156,4 @@ kafka-elasticsearch-standalone-consumer
 
  - [Krishna Raj](https://github.com/reachkrishnaraj)
  - [Marina Popova](https://github.com/ppine7)
- - [Dhyan ](https://github.com/dhyan-yottaa)
+ - [Dhyan Muralidharan](https://github.com/dhyan-yottaa)
