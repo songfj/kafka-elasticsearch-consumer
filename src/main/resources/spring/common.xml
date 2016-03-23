@@ -10,10 +10,9 @@
 
 
 	<bean id="objectMapper" class="com.fasterxml.jackson.databind.ObjectMapper"/>
-	<bean id="messageHandler"
+	<bean id="basicMessageHandler"
 		  class="org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler"
 		  scope="prototype"/>
-	<bean id="indexHandler" class="org.elasticsearch.kafka.indexer.service.impl.BasicIndexHandler"/>
 	<bean id="kafkaClientService"
 		  class="org.elasticsearch.kafka.indexer.service.KafkaClientService"
 		  scope="prototype"/>

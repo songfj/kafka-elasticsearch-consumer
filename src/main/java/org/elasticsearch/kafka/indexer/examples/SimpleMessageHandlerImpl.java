@@ -4,14 +4,13 @@
  */
 package org.elasticsearch.kafka.indexer.examples;
 
-import java.util.Iterator;
-
 import kafka.message.MessageAndOffset;
-
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
 import org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+
+import java.util.Iterator;
 
 /**
  * 
@@ -22,8 +21,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 public class SimpleMessageHandlerImpl implements IMessageHandler {
 
 	@Autowired 
-	@Qualifier("messageHandler")
-	BasicMessageHandler basicHandler;
+	@Qualifier("basicMessageHandler")
+	BasicMessageHandler basicMessageHandler;
 	
 	/**
 	 * 
@@ -36,7 +35,7 @@ public class SimpleMessageHandlerImpl implements IMessageHandler {
 	 */
 	@Override
 	public boolean postToElasticSearch() throws Exception {
-		return basicHandler.postToElasticSearch();
+		return basicMessageHandler.postToElasticSearch();
 	}
 
 	/* (non-Javadoc)
@@ -45,7 +44,7 @@ public class SimpleMessageHandlerImpl implements IMessageHandler {
 	@Override
 	public long prepareForPostToElasticSearch(
 			Iterator<MessageAndOffset> messageAndOffsetIterator) {
-		return basicHandler.prepareForPostToElasticSearch(messageAndOffsetIterator);
+		return basicMessageHandler.prepareForPostToElasticSearch(messageAndOffsetIterator);
 	}
 
 	/* (non-Javadoc)
@@ -64,7 +63,7 @@ public class SimpleMessageHandlerImpl implements IMessageHandler {
 	 */
 	@Override
 	public void processMessage(byte[] bytesMessage) throws Exception {
-		basicHandler.processMessage(bytesMessage);
+		basicMessageHandler.processMessage(bytesMessage);
 	}
 
 }

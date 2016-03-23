@@ -9,6 +9,11 @@
 		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
 	<import resource="common.xml"/>
+    <bean id="messageHandler"
+          class="org.elasticsearch.kafka.indexer.examples.SimpleMessageHandlerImpl"
+          scope="prototype"/>
+
+    <bean id="indexHandler" class="org.elasticsearch.kafka.indexer.service.impl.BasicIndexHandler"/>
     <context:component-scan base-package="org.elasticsearch.kafka.indexer.service"/>
     <context:property-placeholder location="classpath:config/kafka-es-indexer.properties, file:${indexer.properties}"
     	ignore-resource-not-found="true" />
