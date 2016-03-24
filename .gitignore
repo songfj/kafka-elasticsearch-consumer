@@ -2,6 +2,7 @@ bin/
 build/
 .project
 .settings/
+classes/
 /logs/
 .idea
 .classpath
