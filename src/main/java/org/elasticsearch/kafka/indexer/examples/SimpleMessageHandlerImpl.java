@@ -5,12 +5,15 @@
 package org.elasticsearch.kafka.indexer.examples;
 
 import kafka.message.MessageAndOffset;
+
+import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
 import org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.Iterator;
+import java.util.concurrent.ExecutionException;
 
 /**
  * 
@@ -64,6 +67,18 @@ public class SimpleMessageHandlerImpl implements IMessageHandler {
 	@Override
 	public void processMessage(byte[] bytesMessage) throws Exception {
 		basicMessageHandler.processMessage(bytesMessage);
+	}
+
+	@Override
+	public void addEventToBulkRequest(String indexName, String indexType,
+			String eventUUID, boolean needsRouting, String routingValue,
+			String jsonEvent) throws ExecutionException {
+		basicMessageHandler.addEventToBulkRequest(indexName, indexType, eventUUID, needsRouting, routingValue, jsonEvent);		
+	}
+
+	@Override
+	public TransportClient getEsTransportClient() {
+		return basicMessageHandler.getEsTransportClient();
 	}
 
 }

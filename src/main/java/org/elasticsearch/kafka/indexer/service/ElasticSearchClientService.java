@@ -40,7 +40,7 @@ public class ElasticSearchClientService {
 
     // TODO add when we can inject partition number into each bean
 	//private int currentPartition;
-	private TransportClient elasticSearchClient;
+	private TransportClient esTransportClient;
 
 
     @PostConstruct
@@ -49,7 +49,7 @@ public class ElasticSearchClientService {
         // connect to elasticsearch cluster
         Settings settings = ImmutableSettings.settingsBuilder().put(CLUSTER_NAME, esClusterName).build();
         try {
-            elasticSearchClient = new TransportClient(settings);
+            esTransportClient = new TransportClient(settings);
             for (String eachHostPort : esHostPortList) {
                 logger.info("adding [{}] to TransportClient ... ", eachHostPort);
                 String[] hostPortTokens = eachHostPort.split(":");
@@ -62,7 +62,7 @@ public class ElasticSearchClientService {
                 } catch (Throwable e){
                 	logger.error("ERROR parsing port from the ES config [{}]- using default port 9300", eachHostPort);
                 }
-                elasticSearchClient.addTransportAddress(new InetSocketTransportAddress(hostPortTokens[0].trim(), port));
+                esTransportClient.addTransportAddress(new InetSocketTransportAddress(hostPortTokens[0].trim(), port));
             }
             logger.info("ElasticSearch Client created and intialized OK");
         } catch (Exception e) {
@@ -75,8 +75,8 @@ public class ElasticSearchClientService {
     public void cleanup() throws Exception {
 		//logger.info("About to stop ES client for partition={} ...", currentPartition);
 		logger.info("About to stop ES client ...");
-		if (elasticSearchClient != null)
-			elasticSearchClient.close();
+		if (esTransportClient != null)
+			esTransportClient.close();
     }
     
 	public void reInitElasticSearch() throws InterruptedException, IndexerESException {
@@ -109,15 +109,19 @@ public class ElasticSearchClientService {
 
 
 	public IndexRequestBuilder prepareIndex(String indexName, String indexType, String eventUUID) {
-		return elasticSearchClient.prepareIndex(indexName, indexType, eventUUID);
+		return esTransportClient.prepareIndex(indexName, indexType, eventUUID);
 	}
 
 	public IndexRequestBuilder prepareIndex(String indexName, String indexType) {
-		return elasticSearchClient.prepareIndex(indexName, indexType);
+		return esTransportClient.prepareIndex(indexName, indexType);
 	}
 
 	public BulkRequestBuilder prepareBulk() {
-		return elasticSearchClient.prepareBulk();
+		return esTransportClient.prepareBulk();
+	}
+
+	public TransportClient getEsTransportClient() {
+		return esTransportClient;
 	}
 
 }

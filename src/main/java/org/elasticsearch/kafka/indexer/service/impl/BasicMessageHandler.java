@@ -17,6 +17,7 @@ import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
+import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.lang3.StringUtils;
 import org.elasticsearch.kafka.indexer.FailedEventsLogger;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
@@ -188,6 +189,14 @@ public class BasicMessageHandler implements IMessageHandler {
 			throws Exception {
 		// TODO customize this if necessary
 		return inputMessage;
+	}
+
+	/* (non-Javadoc)
+	 * @see org.elasticsearch.kafka.indexer.service.IMessageHandler#getEsTransportClient()
+	 */
+	@Override
+	public TransportClient getEsTransportClient() {
+		return elasticSearchClientService.getEsTransportClient();
 	}
 
 }
