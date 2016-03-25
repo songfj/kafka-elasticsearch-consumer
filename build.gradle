@@ -59,9 +59,9 @@ dependencies {
     //
     def spring_security_version = "4.0.3.RELEASE"
     compile group: 'org.springframework', name: 'spring-core', version: spring_security_version
-    compile group: 'org.springframework', name: 'spring-webmvc', version: spring_security_version
+    //compile group: 'org.springframework', name: 'spring-webmvc', version: spring_security_version
     compile group: 'org.springframework', name: 'spring-oxm', version: spring_security_version
-    compile group: 'org.springframework', name: 'spring-orm', version: spring_security_version
+    //compile group: 'org.springframework', name: 'spring-orm', version: spring_security_version
     compile group: 'org.springframework', name: 'spring-aop', version: spring_security_version
     compile group: 'org.springframework', name: 'spring-jms', version: spring_security_version
 
@@ -141,6 +141,7 @@ docker {
 }
 
 task createDockerContainer(type: Docker, dependsOn: distTar) {
+    project.group = 'bigdatadevs'
     applicationName = project.name
     addFile (tasks.distTar.archivePath, "/opt/")
     addFile ("src/test/resources","/opt/conf/")

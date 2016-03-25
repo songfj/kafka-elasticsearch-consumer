@@ -10,7 +10,9 @@ elasticsearch:
     - 9300:9300
 
 indexer:
-  build: ../build/docker
+  # trying to use the already created image from gradle createDocker  .
+  # build: ../build/docker
+  image: bigdatadevs/kafka-elasticsearch-consumer:0.0.2.0
   volumes:
     - logs:/var/log
   links:
