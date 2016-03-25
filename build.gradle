@@ -118,7 +118,7 @@ bintray {
     publications = ['MyPublication']
     pkg {
         repo = 'bigdatadevs-repo'
-        name = 'elasticsearch-kafka-consumer'
+        name = 'kafka-elasticsearch-consumer'
         userOrg = artifact_provider_org
         licenses = ['AGPL-V3']
         vcsUrl = artifact_provider_url
