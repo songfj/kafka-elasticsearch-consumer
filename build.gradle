@@ -58,6 +58,7 @@ dependencies {
     }
     //
     def spring_security_version = "4.0.3.RELEASE"
+    compile group: 'org.springframework', name: 'spring-context', version: spring_security_version
     compile group: 'org.springframework', name: 'spring-core', version: spring_security_version
     compile group: 'org.springframework', name: 'spring-oxm', version: spring_security_version
 
