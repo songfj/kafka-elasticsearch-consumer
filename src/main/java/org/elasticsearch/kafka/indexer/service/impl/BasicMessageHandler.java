@@ -111,6 +111,10 @@ public class BasicMessageHandler implements IMessageHandler {
     }
 
     public BulkRequestBuilder getBulkRequestBuilder(String key){
+ 	   // add initialization of the hashmap here as well, to enable unit testing of individual methods of this class
+ 	   // without calling prepareForPostToElasticSearch() as the first method always
+    	if (bulkRequestBuilders == null) 
+    		bulkRequestBuilders = new HashMap<>();
 		BulkRequestBuilder bulkRequestBuilder = bulkRequestBuilders.get(key);
 		if (bulkRequestBuilder == null) {
 			bulkRequestBuilder = elasticSearchClientService.prepareBulk();
