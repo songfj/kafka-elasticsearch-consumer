@@ -113,6 +113,7 @@ bintray {
     user = artifact_provider_user
     key = artifact_provider_secret
     publications = ['MyPublication']
+    publish = true
     pkg {
         repo = 'bigdatadevs-repo'
         name = 'kafka-elasticsearch-consumer'
@@ -138,7 +139,7 @@ docker {
 }
 
 task createDockerContainer(type: Docker, dependsOn: distTar) {
-    project.group = 'bigdatadevs'
+    //project.group = 'bigdatadevs'
     applicationName = project.name
     addFile (tasks.distTar.archivePath, "/opt/")
     addFile ("src/test/resources","/opt/conf/")
