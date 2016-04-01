@@ -134,7 +134,7 @@ public class BasicMessageHandler implements IMessageHandler {
 		return true;
 	}
 
-    private void postOneBulkRequestToES(BulkRequestBuilder bulkRequestBuilder) 
+    public void postOneBulkRequestToES(BulkRequestBuilder bulkRequestBuilder) 
     		throws InterruptedException, IndexerESException {
         BulkResponse bulkResponse = null;
         BulkItemResponse bulkItemResp = null;
