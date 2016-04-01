@@ -84,17 +84,21 @@ public class KafkaClientService {
     private CuratorFramework curator;
     private SimpleConsumer simpleConsumer;
     private String kafkaClientId;
-    private final int partition;
+    private  int partition =-1;
     private String leaderBrokerHost;
     private int leaderBrokerPort;
     private String leaderBrokerURL;
 
-    public KafkaClientService(int partition) throws Exception {
+    public KafkaClientService(int partition)  {
         this.partition = partition;
     }
+    public KafkaClientService()  {}
 
     @PostConstruct
     public void init() throws Exception {
+        if(partition < 0){
+            throw new Exception("Partition id not assigned");
+        }
         logger.info("Initializing KafkaClient for topic={}, partition={} ", topic, partition);
         kafkaClientId = consumerGroupName + "_" + partition;
         kafkaBrokersArray = kafkaBrokersList.trim().split(",");
@@ -526,6 +530,14 @@ public class KafkaClientService {
     public void close() {
         curator.close();
         logger.info("Curator/Zookeeper connection closed");
+    }
+
+    public int getPartition() {
+        return partition;
+    }
+
+    public void setPartition(int partition) {
+        this.partition = partition;
     }
 
 }
