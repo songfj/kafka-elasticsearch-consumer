@@ -138,7 +138,7 @@ docker {
 }
 
 task createDockerContainer(type: Docker, dependsOn: distTar) {
-    project.group = 'bigdatadevs'
+    //project.group = 'bigdatadevs'
     applicationName = project.name
     addFile (tasks.distTar.archivePath, "/opt/")
     addFile ("src/test/resources","/opt/conf/")
