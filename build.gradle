@@ -112,6 +112,7 @@ bintray {
     user = artifact_provider_user
     key = artifact_provider_secret
     publications = ['MyPublication']
+    publish = true
     pkg {
         repo = 'bigdatadevs-repo'
         name = 'kafka-elasticsearch-consumer'
