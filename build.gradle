@@ -110,6 +110,7 @@ publishing {
 }
 
 bintray {
+    //dryRun = true
     user = artifact_provider_user
     key = artifact_provider_secret
     publications = ['MyPublication']
