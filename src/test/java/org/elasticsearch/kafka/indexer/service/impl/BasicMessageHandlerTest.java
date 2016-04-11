@@ -1,7 +1,8 @@
 /**
   * @author marinapopova
   * Mar 29, 2016
- */
+ *//*
+
 package org.elasticsearch.kafka.indexer.service.impl;
 
 import static org.junit.Assert.*;
@@ -31,10 +32,12 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.runners.*;
 
+*/
 /**
  * @author marinapopova
  *
- */
+ *//*
+
 @RunWith(MockitoJUnitRunner.class)
 public class BasicMessageHandlerTest {
 
@@ -53,9 +56,11 @@ public class BasicMessageHandlerTest {
 	private String testIndexName = "unitTestsIndex";
 	private String testIndexType = "unitTestsType";
 	
-	/**
+	*/
+/**
 	 * @throws java.lang.Exception
-	 */
+	 *//*
+
 	@Before
 	public void setUp() throws Exception {
 		// Mock all required ES classes and methods
@@ -74,24 +79,30 @@ public class BasicMessageHandlerTest {
 	       Mockito.when(elasticIndexHandler.getIndexType(null)).thenReturn(testIndexType);
 	}
 
-	/**
+	*/
+/**
 	 * @throws java.lang.Exception
-	 */
+	 *//*
+
 	@After
 	public void tearDown() throws Exception {
 	}
 
-	/**
+	*/
+/**
 	 * Test method for {@link org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler#prepareForPostToElasticSearch(java.util.Iterator)}.
-	 */
+	 *//*
+
 	//@Test
 	public void testPrepareForPostToElasticSearch() {
 		fail("Not yet implemented");
 	}
 
-	/**
+	*/
+/**
 	 * Test method for {@link org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler#processMessage(byte[])}.
-	 */
+	 *//*
+
 	@Test
 	public void testProcessMessage() {
 		String message = "test message";
@@ -138,9 +149,11 @@ public class BasicMessageHandlerTest {
 		}
 	}
 
-	/**
+	*/
+/**
 	 * Test method for {@link org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler#addEventToBulkRequest(java.lang.String, java.lang.String, java.lang.String, boolean, java.lang.String, java.lang.String)}.
-	 */
+	 *//*
+
 	@Test
 	public void testAddEventToBulkRequest_withUUID_withRouting() {
 		String message = "test message";
@@ -160,9 +173,11 @@ public class BasicMessageHandlerTest {
 		Mockito.verify(mockedIndexRequestBuilder, Mockito.times(1)).setRouting(eventUUID);
 	}
 
-	/**
+	*/
+/**
 	 * Test method for {@link org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler#postToElasticSearch()}.
-	 */
+	 *//*
+
 	@Test
 	public void testPostOneBulkRequestToES_NoNodeException() {
 		// simulate failure due to ES cluster (or part of it) not being available
@@ -224,3 +239,4 @@ public class BasicMessageHandlerTest {
 	}
 
 }
+*/

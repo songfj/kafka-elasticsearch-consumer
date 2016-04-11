@@ -218,7 +218,8 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
             byte[] bytesMessage = new byte[payload.limit()];
             payload.get(bytesMessage);
             try {
-                messageHandlerService.processMessage(bytesMessage);
+                byte[] transformedMessage = messageHandlerService.transformMessage(bytesMessage,messageAndOffset.offset());
+                messageHandlerService.addMessageToBatch(transformedMessage,messageAndOffset.offset());
                 numProcessedMessages++;
             } catch (Exception e) {
                 numSkippedIndexingMessages++;

@@ -1,6 +1,11 @@
 package org.elasticsearch.kafka.indexer.examples;
 
-import org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler;
+import org.elasticsearch.kafka.indexer.service.ElasticSearchBatchService;
+import org.elasticsearch.kafka.indexer.service.ElasticSearchClientService;
+import org.elasticsearch.kafka.indexer.service.IMessageHandler;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import javax.annotation.PostConstruct;
 
 /**
  * Created by dhyan on 1/29/16.
@@ -9,15 +14,29 @@ import org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler;
  * 
  */
 
-public class RawLogMessageHandlerImpl extends BasicMessageHandler {
+public class RawLogMessageHandlerImpl implements IMessageHandler {
+    private ElasticSearchBatchService elasticSearchBatchService = null;
+    @Autowired
+    private ElasticSearchClientService elasticSearchClientService;
 
-    @Override
-    public byte[] transformMessage(byte[] inputMessage, Long offset) throws Exception {
-        // do necessary transformation here
-        // in the simplest case - post as is
-        //byte[]  outputMessage = inputMessage;
-        return inputMessage;
+    @PostConstruct
+    public void init(){
+        elasticSearchBatchService =new ElasticSearchBatchService(elasticSearchClientService);
     }
 
 
+    @Override
+    public void addMessageToBatch(byte[] inputMessage, Long offset) throws Exception {
+        elasticSearchBatchService.addEventToBulkRequest(new String(inputMessage),"raw-index","raw-type",null,null);
+    }
+
+    @Override
+    public byte[] transformMessage(byte[] inputMessage, Long offset) throws Exception {
+        return inputMessage;
+    }
+
+    @Override
+    public boolean postToElasticSearch() throws Exception {
+        return elasticSearchBatchService.postToElasticSearch();
+    }
 }
