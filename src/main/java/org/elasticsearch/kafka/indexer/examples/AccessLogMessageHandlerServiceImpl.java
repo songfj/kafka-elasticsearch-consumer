@@ -1,22 +1,33 @@
 package org.elasticsearch.kafka.indexer.examples;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
+import org.elasticsearch.kafka.indexer.service.ElasticSearchBatchService;
+import org.elasticsearch.kafka.indexer.service.ElasticSearchClientService;
+import org.elasticsearch.kafka.indexer.service.IMessageHandler;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import javax.annotation.PostConstruct;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
-
-import javax.annotation.PostConstruct;
-
-import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
-import org.elasticsearch.kafka.indexer.service.impl.BasicMessageHandler;
-import org.springframework.beans.factory.annotation.Autowired;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Created by dhyan on 1/29/16.
  */
 
-public class AccessLogMessageHandlerServiceImpl extends BasicMessageHandler {
+public class AccessLogMessageHandlerServiceImpl implements IMessageHandler {
+
+    @Override
+    public void addMessageToBatch(byte[] inputMessage, Long offset) throws Exception {
+        elasticSearchBatchService.addEventToBulkRequest(new String(inputMessage),"raw-index","raw-type",null,null);
+    }
+
+    @Override
+    public boolean postToElasticSearch() throws Exception {
+        return elasticSearchBatchService.postToElasticSearch();
+
+    }
 
     /**
 	 * @throws Exception
@@ -30,6 +41,9 @@ public class AccessLogMessageHandlerServiceImpl extends BasicMessageHandler {
     private ConsumerConfigService consumerConfigService ;
     @Autowired
     private ObjectMapper objectMapper;
+    private ElasticSearchBatchService elasticSearchBatchService = null;
+    @Autowired
+    private ElasticSearchClientService elasticSearchClientService;
 
     private static final String actualTimeZone = "Europe/London";
     private static final String expectedTimeZone = "Europe/London";
@@ -38,6 +52,7 @@ public class AccessLogMessageHandlerServiceImpl extends BasicMessageHandler {
 
     @PostConstruct
     public void init(){
+        elasticSearchBatchService =new ElasticSearchBatchService(elasticSearchClientService);
         actualFormatter.setTimeZone(TimeZone.getTimeZone(actualTimeZone));
         expectedFormatter.setTimeZone(TimeZone.getTimeZone(expectedTimeZone));
     }

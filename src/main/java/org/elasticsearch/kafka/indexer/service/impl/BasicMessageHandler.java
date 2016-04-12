@@ -1,3 +1,4 @@
+/*
 package org.elasticsearch.kafka.indexer.service.impl;
 
 import java.nio.ByteBuffer;
@@ -185,9 +186,11 @@ public class BasicMessageHandler implements IMessageHandler {
         }
     }
 
-	/* (non-Javadoc)
+	*/
+/* (non-Javadoc)
 	 * @see org.elasticsearch.kafka.indexer.service.IMessageHandler#transformMessage(byte[], java.lang.Long)
-	 */
+	 *//*
+
 	@Override
 	public byte[] transformMessage(byte[] inputMessage, Long offset)
 			throws Exception {
@@ -195,12 +198,15 @@ public class BasicMessageHandler implements IMessageHandler {
 		return inputMessage;
 	}
 
-	/* (non-Javadoc)
+	*/
+/* (non-Javadoc)
 	 * @see org.elasticsearch.kafka.indexer.service.IMessageHandler#getEsTransportClient()
-	 */
+	 *//*
+
 	@Override
 	public TransportClient getEsTransportClient() {
 		return elasticSearchClientService.getEsTransportClient();
 	}
 
 }
+*/
