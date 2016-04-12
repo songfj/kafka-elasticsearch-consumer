@@ -59,19 +59,14 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
         indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Started);
         while (!shutdownRequested) {
             try {
-                // check if there was a request to stop this thread - stop processing if so
                 if (Thread.currentThread().isInterrupted()) {
-                    // preserve interruption state of the thread
                     Thread.currentThread().interrupt();
                     throw new InterruptedException(
-                            "Cought interrupted event in IndexerJob for partition=" + currentPartition + " - stopping");
+                            "Caught interrupted event in IndexerJob for partition=" + currentPartition + " - stopping");
                 }
                 logger.debug("******* Starting a new batch of events from Kafka for partition {} ...", currentPartition);
-
                 processMessagesFromKafka();
                 indexerJobStatus.setJobStatus(IndexerJobStatusEnum.InProgress);
-                // sleep for configured time
-                // TODO improve sleep pattern
                 Thread.sleep(configService.getConsumerSleepBetweenFetchsMs() * 1000);
                 logger.debug("Completed a round of indexing into ES for partition {}", currentPartition);
             } catch (IndexerESException | KafkaClientNotRecoverableException e) {
@@ -288,6 +283,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      * 1) Do not read offset from Kafka after each run - instead from memory
      * 2) Do not handle exceptions here - they will be taken care of in the computeOffset()
      *     If this is the only thread that is processing data from this partition
+     * TODO  see if we are doing this too early - before we actually commit the offset
      * @param jobStartTime
      * @throws Exception
      */
@@ -301,7 +297,6 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
             isStartingFirstTime = false;
             nextOffsetToProcess = offsetForThisRound;
         }
-        //TODO  see if we are doing this too early - before we actually commit the offset
         indexerJobStatus.setLastCommittedOffset(offsetForThisRound);
         return;
     }
