@@ -40,13 +40,16 @@ public class ElasticSearchBatchService {
     }
 
     public boolean postToElasticSearch() throws Exception {
-        for (Map.Entry<String, BulkRequestBuilder> entry: bulkRequestBuilders.entrySet()){
-            BulkRequestBuilder bulkRequestBuilder = entry.getValue();
-            postBulkToEs(bulkRequestBuilder);
-            logger.info("Bulk-posting to ES for index: {} # of messages: {}",
-                    entry.getKey(), bulkRequestBuilder.numberOfActions());
+        try {
+            for (Map.Entry<String, BulkRequestBuilder> entry: bulkRequestBuilders.entrySet()){
+                BulkRequestBuilder bulkRequestBuilder = entry.getValue();
+                postBulkToEs(bulkRequestBuilder);
+                logger.info("Bulk-posting to ES for index: {} # of messages: {}",
+                        entry.getKey(), bulkRequestBuilder.numberOfActions());
+            }
+        } finally {
+            bulkRequestBuilders.clear();
         }
-        bulkRequestBuilders.clear();
         return true;
     }
 
