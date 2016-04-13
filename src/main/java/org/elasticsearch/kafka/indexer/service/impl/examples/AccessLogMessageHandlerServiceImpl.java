@@ -1,9 +1,8 @@
-package org.elasticsearch.kafka.indexer.examples;
+package org.elasticsearch.kafka.indexer.service.impl.examples;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
 import org.elasticsearch.kafka.indexer.service.ElasticSearchBatchService;
-import org.elasticsearch.kafka.indexer.service.ElasticSearchClientService;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -41,9 +40,8 @@ public class AccessLogMessageHandlerServiceImpl implements IMessageHandler {
     private ConsumerConfigService consumerConfigService ;
     @Autowired
     private ObjectMapper objectMapper;
-    private ElasticSearchBatchService elasticSearchBatchService = null;
     @Autowired
-    private ElasticSearchClientService elasticSearchClientService;
+    private ElasticSearchBatchService elasticSearchBatchService ;
 
     private static final String actualTimeZone = "Europe/London";
     private static final String expectedTimeZone = "Europe/London";
@@ -52,7 +50,6 @@ public class AccessLogMessageHandlerServiceImpl implements IMessageHandler {
 
     @PostConstruct
     public void init(){
-        elasticSearchBatchService =new ElasticSearchBatchService(elasticSearchClientService);
         actualFormatter.setTimeZone(TimeZone.getTimeZone(actualTimeZone));
         expectedFormatter.setTimeZone(TimeZone.getTimeZone(expectedTimeZone));
     }

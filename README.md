@@ -117,9 +117,9 @@ Message handling can be customized by using IMessageHandler interface and/or Bas
 
  There are two main approaches to do the customization:
   
--- Approach #1: implement the IMessageHandler interface, inject the BasicMessageHandler into your implementation class and delegate most of the methods to the BasicMessageHandler class, overwriting only the transformMessage() method (and maybe others on very rare occasions). See `org.elasticsearch.kafka.indexer.examples.SimpleMessageHandlerImpl` for an example of such customization. While this approach a slightly more complex than the second one, it provides you with an easy way to mock some or all services while unit testing your custom logic. 
+-- Approach #1: implement the IMessageHandler interface, inject the BasicMessageHandler into your implementation class and delegate most of the methods to the BasicMessageHandler class, overwriting only the transformMessage() method (and maybe others on very rare occasions). See `org.elasticsearch.kafka.indexer.service.impl.examples.SimpleMessageHandlerImpl` for an example of such customization. While this approach a slightly more complex than the second one, it provides you with an easy way to mock some or all services while unit testing your custom logic.
 
--- Approach #2: extend the BasicMessageHandler class and overwrite transformMessage() method (and others if needed). See `org.elasticsearch.kafka.indexer.examples.RawLogMessageHandlerImpl` for an example of such customization. This is a simpler to implement approach, but is less flexible for Unit testing, since the constructor of the BasicMessageHandler will be called early on.
+-- Approach #2: extend the BasicMessageHandler class and overwrite transformMessage() method (and others if needed). See `org.elasticsearch.kafka.indexer.service.impl.examples.RawLogMessageHandlerImpl` for an example of such customization. This is a simpler to implement approach, but is less flexible for Unit testing, since the constructor of the BasicMessageHandler will be called early on.
 
 
 * _**Do remember to specify your custom message handler class in the kafka-es-context.xml file. By default, BasicMessageHandler will be used**_

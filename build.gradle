@@ -85,7 +85,7 @@ jar {
     exclude '*.template'
     manifest {
         attributes("Implementation-Title": "kafka-elasticsearch-consumer", "Implementation-Version": version)
-		attributes 'Main-class':'org.elasticsearch.kafka.indexer.KafkaIndexerDriver'
+		attributes 'Main-class':'org.elasticsearch.kafka.indexer.KafkaESIndexerProcess'
     }
 }
 

@@ -1,11 +1,8 @@
-package org.elasticsearch.kafka.indexer.examples;
+package org.elasticsearch.kafka.indexer.service.impl.examples;
 
 import org.elasticsearch.kafka.indexer.service.ElasticSearchBatchService;
-import org.elasticsearch.kafka.indexer.service.ElasticSearchClientService;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
 import org.springframework.beans.factory.annotation.Autowired;
-
-import javax.annotation.PostConstruct;
 
 /**
  * Created by dhyan on 1/29/16.
@@ -15,15 +12,8 @@ import javax.annotation.PostConstruct;
  */
 
 public class RawLogMessageHandlerImpl implements IMessageHandler {
-    private ElasticSearchBatchService elasticSearchBatchService = null;
     @Autowired
-    private ElasticSearchClientService elasticSearchClientService;
-
-    @PostConstruct
-    public void init(){
-        elasticSearchBatchService =new ElasticSearchBatchService(elasticSearchClientService);
-    }
-
+    private ElasticSearchBatchService elasticSearchBatchService;
 
     @Override
     public void addMessageToBatch(byte[] inputMessage, Long offset) throws Exception {

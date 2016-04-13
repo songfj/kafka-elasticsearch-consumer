@@ -10,6 +10,10 @@ import org.elasticsearch.common.lang3.StringUtils;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -19,15 +23,15 @@ import java.util.concurrent.ExecutionException;
 /**
  * Created by dhyan on 4/11/16.
  */
+@Service
+@Scope(value = BeanDefinition.SCOPE_PROTOTYPE)
 public class ElasticSearchBatchService {
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchBatchService.class);
 
     private Map<String, BulkRequestBuilder> bulkRequestBuilders;
+    @Autowired
     private ElasticSearchClientService elasticSearchClientService;
 
-    public ElasticSearchBatchService(ElasticSearchClientService elasticSearchClientService) {
-        this.elasticSearchClientService = elasticSearchClientService;
-    }
 
     public void addEventToBulkRequest(String payLoad, String indexName, String indexType, String eventUUID, String routingValue) throws ExecutionException {
         BulkRequestBuilder builderForThisIndex = getBulkRequestBuilder(indexName);
@@ -123,5 +127,13 @@ public class ElasticSearchBatchService {
 
     public Map<String, BulkRequestBuilder> getBulkRequestBuilders() {
         return bulkRequestBuilders;
+    }
+
+    public ElasticSearchClientService getElasticSearchClientService() {
+        return elasticSearchClientService;
+    }
+
+    public void setElasticSearchClientService(ElasticSearchClientService elasticSearchClientService) {
+        this.elasticSearchClientService = elasticSearchClientService;
     }
 }
