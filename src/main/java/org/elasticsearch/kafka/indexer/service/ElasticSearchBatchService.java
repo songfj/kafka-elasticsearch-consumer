@@ -10,6 +10,10 @@ import org.elasticsearch.common.lang3.StringUtils;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -19,21 +23,21 @@ import java.util.concurrent.ExecutionException;
 /**
  * Created by dhyan on 4/11/16.
  */
+@Service
+@Scope(value = BeanDefinition.SCOPE_PROTOTYPE)
 public class ElasticSearchBatchService {
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchBatchService.class);
 
     private Map<String, BulkRequestBuilder> bulkRequestBuilders;
+    @Autowired
     private ElasticSearchClientService elasticSearchClientService;
 
-    public ElasticSearchBatchService(ElasticSearchClientService elasticSearchClientService) {
-        this.elasticSearchClientService = elasticSearchClientService;
-    }
 
-    public void addEventToBulkRequest(String payLoad,String indexName, String indexType,String eventUUID, String routingValue) throws ExecutionException {
+    public void addEventToBulkRequest(String payLoad, String indexName, String indexType, String eventUUID, String routingValue) throws ExecutionException {
         BulkRequestBuilder builderForThisIndex = getBulkRequestBuilder(indexName);
         IndexRequestBuilder indexRequestBuilder = elasticSearchClientService.prepareIndex(indexName, indexType, eventUUID);
         indexRequestBuilder.setSource(payLoad);
-        if(StringUtils.isNotBlank(routingValue)){
+        if (StringUtils.isNotBlank(routingValue)) {
             indexRequestBuilder.setRouting(routingValue);
         }
         builderForThisIndex.add(indexRequestBuilder);
@@ -41,7 +45,7 @@ public class ElasticSearchBatchService {
 
     public boolean postToElasticSearch() throws Exception {
         try {
-            for (Map.Entry<String, BulkRequestBuilder> entry: bulkRequestBuilders.entrySet()){
+            for (Map.Entry<String, BulkRequestBuilder> entry : bulkRequestBuilders.entrySet()) {
                 BulkRequestBuilder bulkRequestBuilder = entry.getValue();
                 postBulkToEs(bulkRequestBuilder);
                 logger.info("Bulk-posting to ES for index: {} # of messages: {}",
@@ -53,9 +57,13 @@ public class ElasticSearchBatchService {
         return true;
     }
 
-    private BulkRequestBuilder getBulkRequestBuilder(String key){
-        // add initialization of the hashmap here as well, to enable unit testing of individual methods of this class
-        // without calling prepareForPostToElasticSearch() as the first method always
+    /**
+     * Add initialization of the hashmap here as well, to enable unit testing of individual methods of this class
+     * without calling prepareForPostToElasticSearch() as the first method always
+     * @param key
+     * @return
+     */
+    private BulkRequestBuilder getBulkRequestBuilder(String key) {
         if (bulkRequestBuilders == null)
             bulkRequestBuilders = new HashMap<>();
         BulkRequestBuilder bulkRequestBuilder = bulkRequestBuilders.get(key);
@@ -71,11 +79,11 @@ public class ElasticSearchBatchService {
         BulkResponse bulkResponse = null;
         BulkItemResponse bulkItemResp = null;
         //Nothing/NoMessages to post to ElasticSearch
-        if(bulkRequestBuilder.numberOfActions() <= 0){
+        if (bulkRequestBuilder.numberOfActions() <= 0) {
             logger.warn("No messages to post to ElasticSearch - returning");
             return;
         }
-        try{
+        try {
             bulkResponse = bulkRequestBuilder.execute().actionGet();
         } catch (NoNodeAvailableException e) {
             // ES cluster is unreachable or down. Re-try up to the configured number of times
@@ -86,19 +94,19 @@ public class ElasticSearchBatchService {
             //even if re-init of ES succeeded - throw an Exception to re-process the current batch
             throw new IndexerESException("Recovering after an NoNodeAvailableException posting messages to Elastic Search " +
                     " - will re-try processing current batch");
-        } catch(ElasticsearchException e){
+        } catch (ElasticsearchException e) {
             logger.error("Failed to post messages to ElasticSearch: " + e.getMessage(), e);
             throw e;
         }
         logger.debug("Time to post messages to ElasticSearch: {} ms", bulkResponse.getTookInMillis());
-        if(bulkResponse.hasFailures()){
+        if (bulkResponse.hasFailures()) {
             logger.error("Bulk Message Post to ElasticSearch has errors: {}",
                     bulkResponse.buildFailureMessage());
             int failedCount = 0;
             Iterator<BulkItemResponse> bulkRespItr = bulkResponse.iterator();
             //TODO research if there is a way to get all failed messages without iterating over
             // ALL messages in this bulk post request
-            while (bulkRespItr.hasNext()){
+            while (bulkRespItr.hasNext()) {
                 bulkItemResp = bulkRespItr.next();
                 if (bulkItemResp.isFailed()) {
                     failedCount++;
@@ -119,5 +127,13 @@ public class ElasticSearchBatchService {
 
     public Map<String, BulkRequestBuilder> getBulkRequestBuilders() {
         return bulkRequestBuilders;
+    }
+
+    public ElasticSearchClientService getElasticSearchClientService() {
+        return elasticSearchClientService;
+    }
+
+    public void setElasticSearchClientService(ElasticSearchClientService elasticSearchClientService) {
+        this.elasticSearchClientService = elasticSearchClientService;
     }
 }

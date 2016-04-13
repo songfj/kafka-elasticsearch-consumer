@@ -21,7 +21,7 @@ import java.util.List;
  * Created by dhyan on 8/31/15.
  */
 // TODO convert to a singleton Spring ES service when ready
-//@Service
+@Service
 public class ElasticSearchClientService {
 
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchClientService.class);
@@ -41,7 +41,6 @@ public class ElasticSearchClientService {
     // TODO add when we can inject partition number into each bean
 	//private int currentPartition;
 	private TransportClient esTransportClient;
-
 
     @PostConstruct
     public void init() throws Exception {

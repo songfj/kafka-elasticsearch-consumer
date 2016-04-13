@@ -78,7 +78,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
                 stopClients();
                 break;
             } catch (Exception e) {
-                if (!reInitSuccessful(e)) {
+                if (!reinitKafkaSucessful(e)) {
                     break;
                 }
 
@@ -99,7 +99,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      * @param e
      * @return
      */
-    private boolean reInitSuccessful(Exception e) {
+    private boolean reinitKafkaSucessful(Exception e) {
         // we will treat all other Exceptions as recoverable for now
         logger.error("Exception when starting a new round of kafka Indexer job for partition {} - will try to re-init Kafka ",
                 currentPartition, e);
@@ -115,7 +115,10 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
         }
     }
 
-
+    /**
+     * save nextOffsetToProcess in temporary field,and save it after successful execution of indexIntoESWithRetries method
+     * @throws Exception
+     */
     public void processMessagesFromKafka() throws Exception {
         long jobStartTime = System.currentTimeMillis();
         determineOffsetForThisRound(jobStartTime);
@@ -123,8 +126,6 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 
         if (byteBufferMsgSet != null) {
             logger.debug("Starting to prepare for post to ElasticSearch for partition {}", currentPartition);
-            //Need to save nextOffsetToProcess in temporary field,
-            //and save it after successful execution of indexIntoESWithRetries method
             long proposedNextOffsetToProcess = addMessagesToBatch(jobStartTime, byteBufferMsgSet);
             if (configService.isDryRun()) {
                 logger.info("**** This is a dry run, NOT committing the offset in Kafka nor posting to ES for partition {}****", currentPartition);
