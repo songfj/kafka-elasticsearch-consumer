@@ -12,7 +12,7 @@ public class KafkaESIndexerProcess {
     private static final Logger logger = LoggerFactory.getLogger(KafkaESIndexerProcess.class);
     public static void main(String[] args) throws Exception {
         logger.info("Starting KafkaESIndexerProcess  ");
-        ClassPathXmlApplicationContext indexerContext = new ClassPathXmlApplicationContext("spring/kafka-es-context.xml");
+        ClassPathXmlApplicationContext indexerContext = new ClassPathXmlApplicationContext("spring/kafka-es-context-public.xml");
         indexerContext.registerShutdownHook();
         indexerContext.getBean(JobManagerService.class).processAllThreads();
         logger.info("KafkaESIndexerProcess is started OK");

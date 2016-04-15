@@ -144,6 +144,6 @@ task createDockerContainer(type: Docker, dependsOn: distTar) {
     applicationName = project.name
     addFile (tasks.distTar.archivePath, "/opt/")
     addFile ("src/test/resources","/opt/conf/")
-    setEnvironment("JAVA_OPTS", "-Dindexer.properties=/opt/conf/kafka-es-indexer.properties -Dlogback.configurationFile=/opt/conf/logback.xml");
+    setEnvironment("JAVA_OPTS", "-Dindexer.properties=/opt/conf/kafka-es-indexer-docker.properties -Dlogback.configurationFile=/opt/conf/logback.xml");
     entryPoint(["/opt/${tasks.distTar.baseName}-${tasks.distTar.version}/bin/${tasks.distTar.baseName}"])
 }
