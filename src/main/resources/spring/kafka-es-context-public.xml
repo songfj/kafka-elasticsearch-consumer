@@ -14,7 +14,7 @@
           scope="prototype"/>
 
     <context:component-scan base-package="org.elasticsearch.kafka.indexer.service"/>
-    <context:property-placeholder location="classpath:config/kafka-es-indexer.properties, file:${indexer.properties}"
+    <context:property-placeholder location="classpath:config/kafka-es-indexer-public.properties, file:${indexer.properties}"
     	ignore-resource-not-found="true" />
     
 
