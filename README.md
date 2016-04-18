@@ -72,6 +72,7 @@
 * run:  ./gradlew clean installDist
 
 * cd ../build/install/kafka-elasticsearch-consumer/bin dir:
+![](https://github.com/BigDataDevs/kafka-elasticsearch-consumer/tree/master/img/build-dir.png)
 
 * run `./kafka-elasticsearch-consumer -Dindexer.properties=/your/absolute/path/kafka-es-indexer.properties -Dlogback.configurationFile=/your/absolute/path/logback.xml` script
 
