@@ -5,7 +5,7 @@
 
 ## Architecture of the kafka-elasticsearch-standalone-consumer [indexer]
 
-![](https://raw.githubusercontent.com/ppine7/kafka-elasticsearch-standalone-consumer/master/img/IndexerV2Design.jpg)
+![](https://github.com/BigDataDevs/kafka-elasticsearch-consumer/tree/master/img/IndexerV2Design.jpg)
 
 
 # Introduction
@@ -31,18 +31,18 @@
 
 ### Running via Gradle 
 
-**1. Download the code into a `$INDEXER_HOME` dir.
+1. Download the code into a `$INDEXER_HOME` dir.
 
-**2. cp `$INDEXER_HOME`/src/main/resources/config/kafka-es-indexer.properties /your/absolute/path/kafka-es-indexer.properties.template file - update all relevant properties as explained in the comments
+2. cp `$INDEXER_HOME`/src/main/resources/config/kafka-es-indexer.properties /your/absolute/path/kafka-es-indexer.properties.template file - update all relevant properties as explained in the comments
 
-**3. cp `$INDEXER_HOME`/src/main/resources/config/logback.xml.template /your/absolute/path/logback.xml
+3. cp `$INDEXER_HOME`/src/main/resources/config/logback.xml.template /your/absolute/path/logback.xml
 
  specify directory you want to store logs in:
 	<property name="LOG_DIR" value="/tmp"/>
 	
  adjust values of max sizes and number of log files as needed
 
-**4. modify $INDEXER_HOME`/src/main/resources/spring/kafka-es-context-public.xml if needed
+4. modify $INDEXER_HOME`/src/main/resources/spring/kafka-es-context-public.xml if needed
 
 	If you want to use custom IMessageHandler class - specify it in the following config:
 	(make sure to only modify the class name, not the beans' name/scope)
@@ -52,31 +52,26 @@
           scope="prototype"/>
 	
 		
-**5. build the app:
+5. build the app:
 
  cd $INDEXER_HOME
  ./gradlew clean jar
      	
  The kafka-es-indexer-2.0.jar will be created in the $INDEXER_HOME/build/libs/ dir.
 
-**5. make sure your $JAVA_HOME env variable is set (use JDK1.8 or above);
+6. make sure your $JAVA_HOME env variable is set (use JDK1.8 or above);
 	you may want to adjust JVM options and other values in the gradlew script and gradle.properties file
 
-**6. run the app:
+7. run the app:
 
 	./gradlew run -Dindexer.properties=/your/absolute/path/kafka-es-indexer.properties -Dlogback.configurationFile=/your/absolute/path/logback.xml
  
 ### Running via generated scripts:
 
-* Steps 1 - 5 are the same
+* Steps 1 - 6 are the same
 * run:  ./gradlew clean installDist
 
 * cd ../build/install/kafka-elasticsearch-consumer/bin dir:
-build/install
-└── kafka-elasticsearch-consumer
-    ├── bin
-    │   ├── kafka-elasticsearch-consumer
-    │   └── kafka-elasticsearch-consumer.bat
 
 * run `./kafka-elasticsearch-consumer -Dindexer.properties=/your/absolute/path/kafka-es-indexer.properties -Dlogback.configurationFile=/your/absolute/path/logback.xml` script
 
@@ -131,7 +126,7 @@ To do this customization,  you implement the IMessageHandler interface and injec
 
 See `org.elasticsearch.kafka.indexer.service.impl.examples.SimpleMessageHandlerImpl` for an example of such customization. 
 
-* _**Do remember to specify your custom message handler class in the kafka-es-context.xml file. By default, SimpleMessageHandlerImpl will be used**_
+* _**Do remember to specify your custom message handler class in the kafka-es-context-public.xml file. By default, SimpleMessageHandlerImpl will be used**_
 
 ## ES index name/type management customization 
 Index name and index type management/determination customization can be done by providing custom logic in your implementation of the IMessageHandler interface:
