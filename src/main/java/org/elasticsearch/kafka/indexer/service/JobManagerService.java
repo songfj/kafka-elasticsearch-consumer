@@ -23,8 +23,8 @@ import java.util.concurrent.*;
 @Service
 public class JobManagerService {
     private static final Logger logger = LoggerFactory.getLogger(JobManagerService.class);
-
     private static final String KAFKA_CONSUMER_STREAM_POOL_NAME_FORMAT = "kafka-es-indexer-thread-%d";
+    
     @Autowired
     private ApplicationContext indexerContext;
     private ExecutorService executorService;
@@ -42,6 +42,12 @@ public class JobManagerService {
     //timeout in seconds before force-stopping Indexer app and all indexer jobs
     @Value("${appStopTimeoutSeconds:10}")
     private int appStopTimeoutSeconds;
+    // if set to TRUE - enable logging timings of the event processing
+    @Value("${isPerfReportingEnabled:false}")
+    private boolean isPerfReportingEnabled;
+    // if set to TRUE - skip indexing into ES
+    @Value("${isDryRun:false}")
+   private boolean isDryRun;
 
     private ConcurrentHashMap<Integer, IndexerJob> indexerJobs;
     private List<Future<IndexerJobStatus>> indexerJobFutures;
@@ -50,7 +56,7 @@ public class JobManagerService {
 
     public void processAllThreads() throws Exception{
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat(KAFKA_CONSUMER_STREAM_POOL_NAME_FORMAT).build();
-        executorService = Executors.newFixedThreadPool(numOfPartitions,threadFactory);
+        executorService = Executors.newFixedThreadPool(numOfPartitions, threadFactory);
         indexerJobs = new ConcurrentHashMap<>();
         // create as many IndexerJobs as there are partitions in the events topic
         // first create all jobs without starting them - to make sure they can init all resources OK
@@ -61,6 +67,8 @@ public class JobManagerService {
                 KafkaClientService kafkaClientService = (KafkaClientService)indexerContext.getBean("kafkaClientService", partition);
                 IndexerJob pIndexerJob = new IndexerJob(
                 	topic, messageHandlerService, kafkaClientService, partition, consumerSleepBetweenFetchsMs);
+                pIndexerJob.setDryRun(isDryRun);
+                pIndexerJob.setPerfReportingEnabled(isPerfReportingEnabled);
                 indexerJobs.put(partition, pIndexerJob);
             }
         } catch (Exception e) {
