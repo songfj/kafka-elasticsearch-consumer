@@ -1,0 +1,149 @@
+buildscript {
+    repositories { jcenter() }
+    dependencies {
+        classpath 'se.transmode.gradle:gradle-docker:1.2'
+    }
+}
+plugins {
+    id "com.jfrog.bintray" version "1.3.1"
+    id "com.jfrog.artifactory" version "4.0.0"
+}
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'jacoco'
+apply plugin: 'maven-publish'
+apply plugin: 'application'
+apply plugin: 'docker'
+
+
+group = 'org.elasticsearch.kafka.indexer'
+version = release + '.' + build
+mainClassName = "org.elasticsearch.kafka.indexer.KafkaESIndexerProcess"
+
+
+description = """kafka-elasticsearch-consumer"""
+def artifact_provider_url       = hasProperty('artifact_provider_url') ? artifact_provider_url : System.getenv('artifact_provider_url')
+def artifact_provider_user      = hasProperty('artifact_provider_user') ? artifact_provider_user : System.getenv('artifact_provider_user')
+def artifact_provider_org       = hasProperty('artifact_provider_org') ? artifact_provider_org : System.getenv('artifact_provider_org')
+def artifact_provider_secret    = hasProperty('artifact_provider_secret') ? artifact_provider_secret : System.getenv('artifact_provider_secret')
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    compile group: 'org.elasticsearch', name: 'elasticsearch', version: '1.5.1'
+    compile group: 'org.springframework.data', name: 'spring-data-elasticsearch', version: '1.3.2.RELEASE'
+
+    compile group: 'org.apache.kafka', name: 'kafka_2.10', version: '0.8.2.1'
+    compile group: 'com.netflix.curator', name: 'curator-framework', version: '1.0.1'
+    compile group: 'org.codehaus.jackson', name: 'jackson-mapper-asl', version: '1.9.3'
+    compile group: 'org.scala-lang', name: 'scala-library', version: '2.10.0'
+    compile(group: 'log4j', name: 'log4j', version: '1.2.16') {
+        exclude(module: 'mail')
+        exclude(module: 'jms')
+        exclude(module: 'jmxtools')
+        exclude(module: 'jmxri')
+    }
+    compile group: 'org.xerial.snappy', name: 'snappy-java', version: '1.0.4.1'
+    compile(group: 'org.apache.zookeeper', name: 'zookeeper', version: '3.3.4') {
+        exclude(module: 'log4j')
+        exclude(module: 'jline')
+    }
+    //
+    def spring_security_version = "4.0.3.RELEASE"
+    compile group: 'org.springframework', name: 'spring-context', version: spring_security_version
+    compile group: 'org.springframework', name: 'spring-core', version: spring_security_version
+    compile group: 'org.springframework', name: 'spring-oxm', version: spring_security_version
+
+    testCompile group: 'org.springframework', name: 'spring-test', version: spring_security_version
+
+    compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.1.3'
+    compile group: 'ch.qos.logback', name: 'logback-core', version: '1.1.3'
+    compile group: 'junit', name: 'junit', version: '4.12'
+    compile group: 'org.mockito', name: 'mockito-all', version: '1.10.19'
+}
+
+processResources {
+    filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: [version: project.version])
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.12'
+}
+
+jar {
+	from files(sourceSets.main.output.classesDir)
+    exclude 'config'
+    exclude 'log4j.xml'
+    exclude '*.template'
+    manifest {
+        attributes("Implementation-Title": "kafka-elasticsearch-consumer", "Implementation-Version": version)
+		attributes 'Main-class':'org.elasticsearch.kafka.indexer.KafkaESIndexerProcess'
+    }
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives sourcesJar
+}
+
+publishing {
+    publications {
+        MyPublication(MavenPublication) {
+            from components.java
+            groupId 'org.elasticsearch.kafka.indexer'
+            artifactId 'kafka-elasticsearch-consumer'
+            version project.version
+        }
+    }
+}
+
+bintray {
+    //dryRun = true
+    user = artifact_provider_user
+    key = artifact_provider_secret
+    publications = ['MyPublication']
+    publish = true
+    pkg {
+        repo = 'bigdatadevs-repo'
+        name = 'kafka-elasticsearch-consumer'
+        userOrg = artifact_provider_org
+        licenses = ['AGPL-V3']
+        vcsUrl = artifact_provider_url
+        version {
+            name = project.version
+            desc = 'Current version'
+            released  = new Date()
+            vcsTag = '0.0.2'
+            attributes = ['gradle-plugin': 'com.use.less:com.use.less.gradle:gradle-useless-plugin']
+        }
+    }
+    configurations = ['archives']
+}
+run {
+    // support passing -Dsystem.property=value to bootRun task
+    systemProperties = System.properties
+}
+docker {
+    baseImage = 'java:8'
+}
+
+task createDockerContainer(type: Docker, dependsOn: distTar) {
+    //project.group = 'bigdatadevs'
+    applicationName = project.name
+    addFile (tasks.distTar.archivePath, "/opt/")
+    addFile ("src/test/resources","/opt/conf/")
+    setEnvironment("JAVA_OPTS", "-Dindexer.properties=/opt/conf/kafka-es-indexer-docker.properties -Dlogback.configurationFile=/opt/conf/logback.xml");
+    entryPoint(["/opt/${tasks.distTar.baseName}-${tasks.distTar.version}/bin/${tasks.distTar.baseName}"])
+}
