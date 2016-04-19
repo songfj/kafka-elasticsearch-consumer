@@ -26,16 +26,23 @@ public class JobManagerService {
 
     private static final String KAFKA_CONSUMER_STREAM_POOL_NAME_FORMAT = "kafka-es-indexer-thread-%d";
     @Autowired
-    private ConsumerConfigService consumerConfigService ;
-    @Autowired
     private ApplicationContext indexerContext;
     private ExecutorService executorService;
+    @Value("${topic:my_log_topic}")
+    private String topic;
     @Value("${numOfPartitions:4}")
     private int numOfPartitions;
     @Value("${firstPartition:0}")
     private int firstPartition;
     @Value("${lastPartition:3}")
     private int lastPartition;
+    // Wait time in seconds between consumer job rounds
+    @Value("${consumerSleepBetweenFetchsMs:10}")
+    private int consumerSleepBetweenFetchsMs;
+    //timeout in seconds before force-stopping Indexer app and all indexer jobs
+    @Value("${appStopTimeoutSeconds:10}")
+    private int appStopTimeoutSeconds;
+
     private ConcurrentHashMap<Integer, IndexerJob> indexerJobs;
     private List<Future<IndexerJobStatus>> indexerJobFutures;
 
@@ -52,7 +59,8 @@ public class JobManagerService {
                 logger.info("Creating IndexerJob for partition={}", partition);
                 IMessageHandler messageHandlerService = (IMessageHandler)indexerContext.getBean("messageHandler");                
                 KafkaClientService kafkaClientService = (KafkaClientService)indexerContext.getBean("kafkaClientService", partition);
-                IndexerJob pIndexerJob = new IndexerJob(consumerConfigService, messageHandlerService, kafkaClientService, partition);
+                IndexerJob pIndexerJob = new IndexerJob(
+                	topic, messageHandlerService, kafkaClientService, partition, consumerSleepBetweenFetchsMs);
                 indexerJobs.put(partition, pIndexerJob);
             }
         } catch (Exception e) {
@@ -77,7 +85,7 @@ public class JobManagerService {
         logger.info("About to stop all consumer jobs ...");
         if (executorService != null && !executorService.isTerminated()) {
             try {
-                executorService.awaitTermination(consumerConfigService.getAppStopTimeoutSeconds(), TimeUnit.SECONDS);
+                executorService.awaitTermination(appStopTimeoutSeconds, TimeUnit.SECONDS);
                 logger.info("executorService threads stopped ");
             } catch (InterruptedException e) {
                 logger.error("ERROR: failed to stop all consumer jobs due to InterruptedException: ", e);

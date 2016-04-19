@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 /**
  * 
  * This is an example of a customized Message Handler - by implementing IMessageHandler interface
- * and using the BasicMessageHandler to delegate most of the non-customized methods
+ * and using the ElasticSearchBatchService to delegate most of the non-customized logic
  *
  */
 public class SimpleMessageHandlerImpl implements IMessageHandler {
@@ -26,13 +26,16 @@ public class SimpleMessageHandlerImpl implements IMessageHandler {
 
 	@Override
 	public byte[] transformMessage(byte[] inputMessage, Long offset) throws Exception {
+		// do not do any transformations for this scenario - just return the message as is
 		return inputMessage;
 	}
 
 	@Override
 	public void addMessageToBatch(byte[] inputMessage, Long offset) throws Exception {
-		elasticSearchBatchService.addEventToBulkRequest(new String(inputMessage),indexName,indexType,null,null);
-
+		String eventUUID = null; // we don't need a UUID for this simple scenario
+		String routingValue = null; // we don't need routing for this simple scenario		
+		elasticSearchBatchService.addEventToBulkRequest(
+			new String(inputMessage), indexName, indexType, eventUUID, routingValue);
 	}
 
 	@Override

@@ -14,15 +14,15 @@
 
 ### _As described in the illustration above, here is how the indexer works:_
 
-* Kafka has a topic named, say `Topic1`
-
-* Lets say, `Topic1` has 5 partitions.
+* Lets assume Kafka has a topic `Topic1` with 5 partitions
 
 * In the configuration file, kafka-es-indexer.properties, set firstPartition=0 and lastPartition=4 properties 
 
 * start the indexer application as described below 
 
-* there will be 5 threads started, one for each consumer from each of the partitions
+* there will be 5 threads started, one for each consumer for each of the partitions
+
+* each job will be reading events from Kafka and indexing them (in batches) into ElasticSearch - using configured index name and type
 
 * when a new partition is added to the kafka topic - configuration has to be updated and the indexer application has to be restarted
 

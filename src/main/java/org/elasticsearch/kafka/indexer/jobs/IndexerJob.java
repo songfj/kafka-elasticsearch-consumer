@@ -10,7 +10,6 @@ import org.elasticsearch.kafka.indexer.FailedEventsLogger;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
 import org.elasticsearch.kafka.indexer.exception.KafkaClientNotRecoverableException;
 import org.elasticsearch.kafka.indexer.exception.KafkaClientRecoverableException;
-import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
 import org.elasticsearch.kafka.indexer.service.KafkaClientService;
 import org.slf4j.Logger;
@@ -23,7 +22,6 @@ import java.util.concurrent.Callable;
 public class IndexerJob implements Callable<IndexerJobStatus> {
 
     private static final Logger logger = LoggerFactory.getLogger(IndexerJob.class);
-    private ConsumerConfigService configService;
     private IMessageHandler messageHandlerService;
     public KafkaClientService kafkaClient;
     private long offsetForThisRound;
@@ -33,17 +31,21 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
     private final String currentTopic;
     private IndexerJobStatus indexerJobStatus;
     private volatile boolean shutdownRequested = false;
-
-
-    public IndexerJob(ConsumerConfigService configService, IMessageHandler messageHandlerService,
-                      KafkaClientService kafkaClient, int partition)
+    private int consumerSleepBetweenFetchsMs;
+    // this property can be set to TRUE to enable logging timings of the event processing
+    private boolean isPerfReportingEnabled = false;
+    // this property can be set to TRUE to skip indexing into ES
+    private boolean isDryRun = false;
+   
+    public IndexerJob(String topic, IMessageHandler messageHandlerService,
+                      KafkaClientService kafkaClient, int partition, int consumerSleepBetweenFetchsMs)
             throws Exception {
-        this.configService = configService;
         this.currentPartition = partition;
-        this.currentTopic = configService.getTopic();
+        this.currentTopic = topic;
         this.messageHandlerService = messageHandlerService;
         indexerJobStatus = new IndexerJobStatus(-1L, IndexerJobStatusEnum.Created, partition);
         isStartingFirstTime = true;
+        this.consumerSleepBetweenFetchsMs = consumerSleepBetweenFetchsMs;
         this.kafkaClient = kafkaClient;
         indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Initialized);
         logger.info("Created IndexerJob for topic={}, partition={};  messageHandlerService={}; kafkaClient={}",
@@ -67,7 +69,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
                 logger.debug("******* Starting a new batch of events from Kafka for partition {} ...", currentPartition);
                 processMessagesFromKafka();
                 indexerJobStatus.setJobStatus(IndexerJobStatusEnum.InProgress);
-                Thread.sleep(configService.getConsumerSleepBetweenFetchsMs() * 1000);
+                Thread.sleep(consumerSleepBetweenFetchsMs * 1000);
                 logger.debug("Completed a round of indexing into ES for partition {}", currentPartition);
             } catch (IndexerESException | KafkaClientNotRecoverableException e) {
                 indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Failed);
@@ -127,7 +129,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
         if (byteBufferMsgSet != null) {
             logger.debug("Starting to prepare for post to ElasticSearch for partition {}", currentPartition);
             long proposedNextOffsetToProcess = addMessagesToBatch(jobStartTime, byteBufferMsgSet);
-            if (configService.isDryRun()) {
+            if (isDryRun) {
                 logger.info("**** This is a dry run, NOT committing the offset in Kafka nor posting to ES for partition {}****", currentPartition);
                 return;
             }
@@ -144,7 +146,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      * @throws KafkaClientRecoverableException
      */
     private void commitOffSet(long jobStartTime) throws KafkaClientRecoverableException {
-        if (configService.isPerfReportingEnabled()) {
+        if (isPerfReportingEnabled) {
             long timeAfterEsPost = System.currentTimeMillis();
             logger.debug("Approx time to post of ElasticSearch: {} ms for partition {}",
                     (timeAfterEsPost - jobStartTime), currentPartition);
@@ -159,7 +161,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
                     " after processing and posting to ES; partition=" + currentPartition + "; error: " + e.getMessage(), e);
         }
 
-        if (configService.isPerfReportingEnabled()) {
+        if (isPerfReportingEnabled) {
             long timeAtEndOfJob = System.currentTimeMillis();
             logger.info("*** This round of IndexerJob took about {} ms for partition {} ",
                     (timeAtEndOfJob - jobStartTime), currentPartition);
@@ -228,7 +230,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
                         "# of successfully transformed and added to Index: {}; # of skipped from indexing: {}; offsetOfNextBatch: {}",
                 numMessagesInBatch, numProcessedMessages, numSkippedIndexingMessages, offsetOfNextBatch);
 
-        if (configService.isPerfReportingEnabled()) {
+        if (isPerfReportingEnabled) {
             long timeAtPrepareES = System.currentTimeMillis();
             logger.debug("Completed preparing for post to ElasticSearch. Approx time taken: {}ms for partition {}",
                     (timeAtPrepareES - jobStartTime), currentPartition);
@@ -261,7 +263,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
         }
 
         byteBufferMsgSet = fetchResponse.messageSet(currentTopic, currentPartition);
-        if (configService.isPerfReportingEnabled()) {
+        if (isPerfReportingEnabled) {
             long timeAfterKafkaFetch = System.currentTimeMillis();
             logger.debug("Completed MsgSet fetch from Kafka. Approx time taken is {} ms for partition {}",
                     (timeAfterKafkaFetch - jobStartTime), currentPartition);
@@ -312,5 +314,13 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
     public IndexerJobStatus getIndexerJobStatus() {
         return indexerJobStatus;
     }
+
+	public void setPerfReportingEnabled(boolean isPerfReportingEnabled) {
+		this.isPerfReportingEnabled = isPerfReportingEnabled;
+	}
+
+	public void setDryRun(boolean isDryRun) {
+		this.isDryRun = isDryRun;
+	}
 
 }

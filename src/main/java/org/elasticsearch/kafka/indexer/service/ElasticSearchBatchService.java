@@ -32,11 +32,19 @@ public class ElasticSearchBatchService {
     @Autowired
     private ElasticSearchClientService elasticSearchClientService;
 
-
-    public void addEventToBulkRequest(String payLoad, String indexName, String indexType, String eventUUID, String routingValue) throws ExecutionException {
+    /**
+     * 
+     * @param inputMessage - message body 	
+     * @param indexName - ES index name to index this event into 
+     * @param indexType - index type of the ES 
+     * @param eventUUID - uuid of the event - if needed for routing or as a UUID to use for ES documents; can be NULL
+     * @param routingValue - value to use for ES index routing - if needed; can be null if routing is not needed 
+     * @throws ExecutionException
+     */
+    public void addEventToBulkRequest(String inputMessage, String indexName, String indexType, String eventUUID, String routingValue) throws ExecutionException {
         BulkRequestBuilder builderForThisIndex = getBulkRequestBuilder(indexName);
         IndexRequestBuilder indexRequestBuilder = elasticSearchClientService.prepareIndex(indexName, indexType, eventUUID);
-        indexRequestBuilder.setSource(payLoad);
+        indexRequestBuilder.setSource(inputMessage);
         if (StringUtils.isNotBlank(routingValue)) {
             indexRequestBuilder.setRouting(routingValue);
         }

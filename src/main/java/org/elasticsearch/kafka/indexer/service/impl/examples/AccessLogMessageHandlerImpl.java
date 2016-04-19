@@ -1,12 +1,14 @@
 package org.elasticsearch.kafka.indexer.service.impl.examples;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.elasticsearch.kafka.indexer.service.ConsumerConfigService;
+
 import org.elasticsearch.kafka.indexer.service.ElasticSearchBatchService;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
 import javax.annotation.PostConstruct;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
@@ -15,7 +17,18 @@ import java.util.TimeZone;
  * Created by dhyan on 1/29/16.
  */
 
-public class AccessLogMessageHandlerServiceImpl implements IMessageHandler {
+public class AccessLogMessageHandlerImpl implements IMessageHandler {
+
+	// Kafka Topic to process messages from
+    @Value("${topic:my_log_topic}")
+    private   String topic;
+    // the below two parameters define the range of partitions to be processed by this app
+    // first partition in the Kafka Topic from which the messages have to be processed
+    @Value("${firstPartition:0}")
+    private   short firstPartition;
+    // Name of the Kafka Consumer Group
+    @Value("${consumerGroupName:kafka_es_indexer}")
+    private   String consumerGroupName;
 
     @Override
     public void addMessageToBatch(byte[] inputMessage, Long offset) throws Exception {
@@ -31,13 +44,11 @@ public class AccessLogMessageHandlerServiceImpl implements IMessageHandler {
     /**
 	 * @throws Exception
 	 */
-	public AccessLogMessageHandlerServiceImpl() throws Exception {
+	public AccessLogMessageHandlerImpl() throws Exception {
 		super();
 		// TODO Auto-generated constructor stub
 	}
 
-	@Autowired
-    private ConsumerConfigService consumerConfigService ;
     @Autowired
     private ObjectMapper objectMapper;
     @Autowired
@@ -69,9 +80,9 @@ public class AccessLogMessageHandlerServiceImpl implements IMessageHandler {
         AccessLogMapper accessLogMsgObj = new AccessLogMapper();
         accessLogMsgObj.setRawMessage(rawMsg);
         accessLogMsgObj.getKafkaMetaData().setOffset(offset);
-        accessLogMsgObj.getKafkaMetaData().setTopic(consumerConfigService.getTopic());
-        accessLogMsgObj.getKafkaMetaData().setConsumerGroupName(consumerConfigService.getConsumerGroupName());
-        accessLogMsgObj.getKafkaMetaData().setPartition(consumerConfigService.getFirstPartition());
+        accessLogMsgObj.getKafkaMetaData().setTopic(topic);
+        accessLogMsgObj.getKafkaMetaData().setConsumerGroupName(consumerGroupName);
+        accessLogMsgObj.getKafkaMetaData().setPartition(firstPartition);
         accessLogMsgObj.setIp(splitMsg[0].trim());
         accessLogMsgObj.setProtocol(splitMsg[1].trim());
 
