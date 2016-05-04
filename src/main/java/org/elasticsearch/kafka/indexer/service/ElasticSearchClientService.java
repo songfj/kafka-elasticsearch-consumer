@@ -1,5 +1,6 @@
 package org.elasticsearch.kafka.indexer.service;
 
+import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.TransportClient;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-
 import java.util.List;
 
 /**
@@ -106,6 +106,25 @@ public class ElasticSearchClientService {
 		}
 	}
 
+	public void deleteIndex(String index) {
+		esTransportClient.admin().indices().prepareDelete(index).execute().actionGet();
+		logger.info("Delete index {} successfully", index);
+	}
+
+	public void createIndex(String indexName){
+		esTransportClient.admin().indices().prepareCreate(indexName).execute().actionGet();
+		logger.info("Created index {} successfully" + indexName);
+	}
+
+	public void createIndexAndAlias(String indexName,String aliasName){
+		esTransportClient.admin().indices().prepareCreate(indexName).addAlias(new Alias(aliasName)).execute().actionGet();
+		logger.info("Created index {} with alias {} successfully" ,indexName,aliasName);
+	}
+
+	public void addAliasToExistingIndex(String indexName, String aliasName) {
+		esTransportClient.admin().indices().prepareAliases().addAlias(indexName, aliasName).execute().actionGet();
+		logger.info("Added alias {} to index {} successfully" ,aliasName,indexName);
+	}
 
 	public IndexRequestBuilder prepareIndex(String indexName, String indexType, String eventUUID) {
 		return esTransportClient.prepareIndex(indexName, indexType, eventUUID);
