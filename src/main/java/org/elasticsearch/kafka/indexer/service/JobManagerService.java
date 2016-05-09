@@ -30,7 +30,7 @@ public class JobManagerService {
     private ExecutorService executorService;
     @Value("${topic:my_log_topic}")
     private String topic;
-    @Value("${numOfPartitions:4}")
+
     private int numOfPartitions;
     @Value("${firstPartition:0}")
     private int firstPartition;
@@ -55,6 +55,7 @@ public class JobManagerService {
 
 
     public void processAllThreads() throws Exception{
+        numOfPartitions =(lastPartition-firstPartition)+1;
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat(KAFKA_CONSUMER_STREAM_POOL_NAME_FORMAT).build();
         executorService = Executors.newFixedThreadPool(numOfPartitions, threadFactory);
         indexerJobs = new ConcurrentHashMap<>();
