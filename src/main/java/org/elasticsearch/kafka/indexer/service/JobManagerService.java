@@ -36,8 +36,8 @@ public class JobManagerService {
     private int firstPartition;
     @Value("${lastPartition:3}")
     private int lastPartition;
-    // Wait time in seconds between consumer job rounds
-    @Value("${consumerSleepBetweenFetchsMs:10}")
+    // Wait time in MS between consumer job rounds
+    @Value("${consumerSleepBetweenFetchsMs:100}")
     private int consumerSleepBetweenFetchsMs;
     //timeout in seconds before force-stopping Indexer app and all indexer jobs
     @Value("${appStopTimeoutSeconds:10}")

@@ -85,7 +85,7 @@ esClusterName=KafkaESCluster
 
 # ES Index Name that messages will be posted/indexed to; this can be customized via using a custom IndexHandler implementation class
 # Default: "kafkaESIndex"
-esIndex=kafkaESIndex
+esIndexName=kafkaESIndex
 
 # ES Index Type that messages will be posted/indexed to; this can be customized via using a custom IndexHandler implementation class 
 # Default: “kafkaESType” 
