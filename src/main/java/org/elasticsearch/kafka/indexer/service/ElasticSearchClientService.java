@@ -4,7 +4,6 @@ import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
@@ -15,6 +14,8 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+
+import java.net.InetSocketAddress;
 import java.util.List;
 
 /**
@@ -46,9 +47,9 @@ public class ElasticSearchClientService {
     public void init() throws Exception {
     	logger.info("Initializing ElasticSearchClient ...");
         // connect to elasticsearch cluster
-        Settings settings = ImmutableSettings.settingsBuilder().put(CLUSTER_NAME, esClusterName).build();
+        Settings settings = Settings.settingsBuilder().put(CLUSTER_NAME, esClusterName).build();
         try {
-            esTransportClient = new TransportClient(settings);
+            esTransportClient = TransportClient.builder().settings(settings).build();
             for (String eachHostPort : esHostPortList) {
                 logger.info("adding [{}] to TransportClient ... ", eachHostPort);
                 String[] hostPortTokens = eachHostPort.split(":");
@@ -61,7 +62,8 @@ public class ElasticSearchClientService {
                 } catch (Throwable e){
                 	logger.error("ERROR parsing port from the ES config [{}]- using default port 9300", eachHostPort);
                 }
-                esTransportClient.addTransportAddress(new InetSocketTransportAddress(hostPortTokens[0].trim(), port));
+                esTransportClient.addTransportAddress(new InetSocketTransportAddress(
+                		new InetSocketAddress(hostPortTokens[0].trim(), port)));
             }
             logger.info("ElasticSearch Client created and intialized OK");
         } catch (Exception e) {

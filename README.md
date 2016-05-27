@@ -81,7 +81,7 @@
 
 * Kafka Version: 0.8.2.1
 
-* ElasticSearch: 1.5.x -1.6.x (2.0 is in the development)
+* ElasticSearch: 2.x 
 
 * Scala Version for Kafka Build: 2.10.0
 

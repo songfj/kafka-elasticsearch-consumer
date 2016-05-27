@@ -109,7 +109,7 @@ messageEncoding=UTF-8
 isDryRun=false
 
 # Time in ms for the consumer to sleep between each round of reading events from Kafka
-consumerSleepBetweenFetchsMs=10
+consumerSleepBetweenFetchsMs=1000
 # number of times to try to re-connect to ES when performing batch indexing , if connection to ES fails
 numberOfEsIndexingRetryAttempts=2
 # sleep time in ms between attempts to connect to ES
