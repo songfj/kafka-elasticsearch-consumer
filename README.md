@@ -160,3 +160,4 @@ kafka-elasticsearch-standalone-consumer
  - [Krishna Raj](https://github.com/reachkrishnaraj)
  - [Marina Popova](https://github.com/ppine7)
  - [Dhyan Muralidharan](https://github.com/dhyan-yottaa)
+ - [Andriy Pyshchyk](https://github.com/apysh)

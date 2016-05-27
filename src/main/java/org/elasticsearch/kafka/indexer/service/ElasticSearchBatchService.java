@@ -68,16 +68,16 @@ public class ElasticSearchBatchService {
     /**
      * Add initialization of the hashmap here as well, to enable unit testing of individual methods of this class
      * without calling prepareForPostToElasticSearch() as the first method always
-     * @param key
+     * @param indexName
      * @return
      */
-    private BulkRequestBuilder getBulkRequestBuilder(String key) {
+    private BulkRequestBuilder getBulkRequestBuilder(String indexName) {
         if (bulkRequestBuilders == null)
             bulkRequestBuilders = new HashMap<>();
-        BulkRequestBuilder bulkRequestBuilder = bulkRequestBuilders.get(key);
+        BulkRequestBuilder bulkRequestBuilder = bulkRequestBuilders.get(indexName);
         if (bulkRequestBuilder == null) {
             bulkRequestBuilder = elasticSearchClientService.prepareBulk();
-            bulkRequestBuilders.put(key, bulkRequestBuilder);
+            bulkRequestBuilders.put(indexName, bulkRequestBuilder);
         }
         return bulkRequestBuilder;
     }
