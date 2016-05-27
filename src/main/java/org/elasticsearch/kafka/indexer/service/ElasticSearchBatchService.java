@@ -6,7 +6,6 @@ import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
-import org.elasticsearch.common.lang3.StringUtils;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +44,7 @@ public class ElasticSearchBatchService {
         BulkRequestBuilder builderForThisIndex = getBulkRequestBuilder(indexName);
         IndexRequestBuilder indexRequestBuilder = elasticSearchClientService.prepareIndex(indexName, indexType, eventUUID);
         indexRequestBuilder.setSource(inputMessage);
-        if (StringUtils.isNotBlank(routingValue)) {
+        if (routingValue != null && routingValue.trim().length()>0) {
             indexRequestBuilder.setRouting(routingValue);
         }
         builderForThisIndex.add(indexRequestBuilder);
@@ -56,7 +55,7 @@ public class ElasticSearchBatchService {
             for (Map.Entry<String, BulkRequestBuilder> entry : bulkRequestBuilders.entrySet()) {
                 BulkRequestBuilder bulkRequestBuilder = entry.getValue();
                 postBulkToEs(bulkRequestBuilder);
-                logger.info("Bulk-posting to ES for index: {} # of messages: {}",
+                logger.info("Bulk post to ES finished Ok for index: {}; # of messages: {}",
                         entry.getKey(), bulkRequestBuilder.numberOfActions());
             }
         } finally {
@@ -127,10 +126,8 @@ public class ElasticSearchBatchService {
                     //FailedEventsLogger.logFailedToPostToESEvent(restResponse, errorMessage);
                 }
             }
-            logger.info("# of failed to post messages to ElasticSearch: {} ", failedCount);
-        } else {
-            logger.info("Bulk Post to ElasticSearch finished OK");
-        }
+            logger.error("FAILURES: # of failed to post messages to ElasticSearch: {} ", failedCount);
+        } 
     }
 
     public Map<String, BulkRequestBuilder> getBulkRequestBuilders() {
