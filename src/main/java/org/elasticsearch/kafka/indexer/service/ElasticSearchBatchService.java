@@ -6,6 +6,7 @@ import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
+import org.elasticsearch.common.lang3.StringUtils;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +45,7 @@ public class ElasticSearchBatchService {
         BulkRequestBuilder builderForThisIndex = getBulkRequestBuilder(indexName);
         IndexRequestBuilder indexRequestBuilder = elasticSearchClientService.prepareIndex(indexName, indexType, eventUUID);
         indexRequestBuilder.setSource(inputMessage);
-        if (routingValue != null && routingValue.trim().length()>0) {
+        if (StringUtils.isNotBlank(routingValue)) {
             indexRequestBuilder.setRouting(routingValue);
         }
         builderForThisIndex.add(indexRequestBuilder);
@@ -55,7 +56,7 @@ public class ElasticSearchBatchService {
             for (Map.Entry<String, BulkRequestBuilder> entry : bulkRequestBuilders.entrySet()) {
                 BulkRequestBuilder bulkRequestBuilder = entry.getValue();
                 postBulkToEs(bulkRequestBuilder);
-                logger.info("Bulk post to ES finished Ok for index: {}; # of messages: {}",
+                logger.info("Bulk-posting to ES for index: {} # of messages: {}",
                         entry.getKey(), bulkRequestBuilder.numberOfActions());
             }
         } finally {
@@ -67,21 +68,21 @@ public class ElasticSearchBatchService {
     /**
      * Add initialization of the hashmap here as well, to enable unit testing of individual methods of this class
      * without calling prepareForPostToElasticSearch() as the first method always
-     * @param indexName
+     * @param key
      * @return
      */
-    private BulkRequestBuilder getBulkRequestBuilder(String indexName) {
+    private BulkRequestBuilder getBulkRequestBuilder(String key) {
         if (bulkRequestBuilders == null)
             bulkRequestBuilders = new HashMap<>();
-        BulkRequestBuilder bulkRequestBuilder = bulkRequestBuilders.get(indexName);
+        BulkRequestBuilder bulkRequestBuilder = bulkRequestBuilders.get(key);
         if (bulkRequestBuilder == null) {
             bulkRequestBuilder = elasticSearchClientService.prepareBulk();
-            bulkRequestBuilders.put(indexName, bulkRequestBuilder);
+            bulkRequestBuilders.put(key, bulkRequestBuilder);
         }
         return bulkRequestBuilder;
     }
 
-    private void postBulkToEs(BulkRequestBuilder bulkRequestBuilder)
+    protected void postBulkToEs(BulkRequestBuilder bulkRequestBuilder)
             throws InterruptedException, IndexerESException {
         BulkResponse bulkResponse = null;
         BulkItemResponse bulkItemResp = null;
@@ -126,8 +127,10 @@ public class ElasticSearchBatchService {
                     //FailedEventsLogger.logFailedToPostToESEvent(restResponse, errorMessage);
                 }
             }
-            logger.error("FAILURES: # of failed to post messages to ElasticSearch: {} ", failedCount);
-        } 
+            logger.info("# of failed to post messages to ElasticSearch: {} ", failedCount);
+        } else {
+            logger.info("Bulk Post to ElasticSearch finished OK");
+        }
     }
 
     public Map<String, BulkRequestBuilder> getBulkRequestBuilders() {
