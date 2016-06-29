@@ -23,7 +23,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 
     private static final Logger logger = LoggerFactory.getLogger(IndexerJob.class);
     private IMessageHandler messageHandlerService;
- 	public KafkaClientService kafkaClient;
+	public KafkaClientService kafkaClient;
     private long offsetForThisRound;
     private long nextOffsetToProcess;
     private boolean isStartingFirstTime;
@@ -69,7 +69,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
                 logger.debug("******* Starting a new batch of events from Kafka for partition {} ...", currentPartition);
                 processMessagesFromKafka();
                 indexerJobStatus.setJobStatus(IndexerJobStatusEnum.InProgress);
-                Thread.sleep(consumerSleepBetweenFetchsMs * 1000);
+                Thread.sleep(consumerSleepBetweenFetchsMs);
                 logger.debug("Completed a round of indexing into ES for partition {}", currentPartition);
             } catch (IndexerESException | KafkaClientNotRecoverableException e) {
                 indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Failed);
