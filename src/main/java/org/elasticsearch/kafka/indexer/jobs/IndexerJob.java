@@ -23,7 +23,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 
     private static final Logger logger = LoggerFactory.getLogger(IndexerJob.class);
     private IMessageHandler messageHandlerService;
-    public KafkaClientService kafkaClient;
+	public KafkaClientService kafkaClient;
     private long offsetForThisRound;
     private long nextOffsetToProcess;
     private boolean isStartingFirstTime;
@@ -101,7 +101,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      * @param e
      * @return
      */
-    private boolean reinitKafkaSucessful(Exception e) {
+    protected boolean reinitKafkaSucessful(Exception e) {
         // we will treat all other Exceptions as recoverable for now
         logger.error("Exception when starting a new round of kafka Indexer job for partition {} - will try to re-init Kafka ",
                 currentPartition, e);
@@ -123,7 +123,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      */
     public void processMessagesFromKafka() throws Exception {
         long jobStartTime = System.currentTimeMillis();
-        determineOffsetForThisRound(jobStartTime);
+        determineOffsetForThisRound();
         ByteBufferMessageSet byteBufferMsgSet = getMessageAndOffsets(jobStartTime);
 
         if (byteBufferMsgSet != null) {
@@ -180,7 +180,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      * @return
      * @throws Exception
      */
-    private boolean postBatchToElasticSearch(long proposedNextOffsetToProcess) throws Exception {
+    protected boolean postBatchToElasticSearch(long proposedNextOffsetToProcess) throws Exception {
         try {
             logger.info("About to post messages to ElasticSearch for partition={}, offsets {}-->{} ",
                     currentPartition, offsetForThisRound, proposedNextOffsetToProcess - 1);
@@ -200,7 +200,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
         return true;
     }
 
-    private long addMessagesToBatch(long jobStartTime, ByteBufferMessageSet byteBufferMsgSet) {
+    protected long addMessagesToBatch(long jobStartTime, ByteBufferMessageSet byteBufferMsgSet) {
         int numProcessedMessages = 0;
         int numSkippedIndexingMessages = 0;
         int numMessagesInBatch = 0;
@@ -250,7 +250,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      * @return
      * @throws Exception
      */
-    private ByteBufferMessageSet getMessageAndOffsets(long jobStartTime) throws Exception {
+    protected ByteBufferMessageSet getMessageAndOffsets(long jobStartTime) throws Exception {
         FetchResponse fetchResponse = kafkaClient.getMessagesFromKafka(offsetForThisRound);
         ByteBufferMessageSet byteBufferMsgSet = null;
         if (fetchResponse.hasError()) {
@@ -287,10 +287,9 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      * 2) Do not handle exceptions here - they will be taken care of in the computeOffset()
      *     If this is the only thread that is processing data from this partition
      * TODO  see if we are doing this too early - before we actually commit the offset
-     * @param jobStartTime
      * @throws Exception
      */
-    private void determineOffsetForThisRound(long jobStartTime) throws Exception {
+    protected void determineOffsetForThisRound() throws Exception {
 
         if (!isStartingFirstTime) {
             offsetForThisRound = nextOffsetToProcess;
@@ -323,4 +322,13 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 		this.isDryRun = isDryRun;
 	}
 
+   public void setOffsetForThisRound(long offsetForThisRound) {
+		this.offsetForThisRound = offsetForThisRound;
+	}
+
+	public void setNextOffsetToProcess(long nextOffsetToProcess) {
+		this.nextOffsetToProcess = nextOffsetToProcess;
+	}
+
+	
 }
