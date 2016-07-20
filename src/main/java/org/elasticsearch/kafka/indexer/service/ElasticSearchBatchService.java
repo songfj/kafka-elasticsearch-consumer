@@ -60,7 +60,7 @@ public class ElasticSearchBatchService {
             for (Map.Entry<String, BulkRequestBuilder> entry : bulkRequestBuilders.entrySet()) {
                 BulkRequestBuilder bulkRequestBuilder = entry.getValue();
                 postBulkToEs(bulkRequestBuilder);
-                logger.info("Bulk post to ES finished Ok for index: {}; # of messages: {}",
+               logger.info("Bulk post to ES finished Ok for index: {}; # of messages: {}",
                         entry.getKey(), bulkRequestBuilder.numberOfActions());
             }
         } finally {
@@ -86,7 +86,7 @@ public class ElasticSearchBatchService {
         return bulkRequestBuilder;
     }
 
-    private void postBulkToEs(BulkRequestBuilder bulkRequestBuilder)
+    protected void postBulkToEs(BulkRequestBuilder bulkRequestBuilder)
             throws InterruptedException, IndexerESException {
         BulkResponse bulkResponse = null;
         BulkItemResponse bulkItemResp = null;
