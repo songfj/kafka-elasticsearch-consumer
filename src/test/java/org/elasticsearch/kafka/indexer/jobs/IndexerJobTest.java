@@ -1,6 +1,7 @@
 package org.elasticsearch.kafka.indexer.jobs;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import junit.framework.Assert;
 import kafka.javaapi.FetchResponse;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.Message;
@@ -59,18 +61,6 @@ public class IndexerJobTest {
 		indexerJob.setPerfReportingEnabled(true);
 		indexerJobSpy = Mockito.spy(indexerJob);
 	}
-
-	@Test
-	public void callTest(){
-		try {
-			Mockito.doThrow(new InterruptedException()).when(indexerJobSpy).processMessagesFromKafka();
-		//	Mockito.when(indexerJobSpy.reinitKafkaSucessful(Matchers.any())).thenReturn(false);
-		} catch (Exception e) {
-			fail("Unexpected exception from unit test: " + e.getMessage());
-		}
-		//indexerJob.call();
-	}
-	
 	
 	@Test
 	public void processMessagesFromKafka() {
@@ -78,7 +68,6 @@ public class IndexerJobTest {
 			Mockito.when(kafkaClientService.getMessagesFromKafka(Matchers.anyLong())).thenReturn(fetchResponse);
 
 			indexerJob.processMessagesFromKafka();
-		//	messageHandlerService.addMessageToBatch(transformedMessage,messageAndOffset.offset());
 			Mockito.verify(messageHandler, Mockito.times(messages.size())).addMessageToBatch(Matchers.any(), Matchers.anyLong());
 
 		} catch (Exception e) {
@@ -167,6 +156,7 @@ public class IndexerJobTest {
 		} catch (KafkaClientRecoverableException e) {
 			fail("Unexpected exception from unit test: " + e.getMessage());
 		}
+		//Check if call to this methot will not throw any exception
 		try {
 			indexerJob.getMessageAndOffsets(0l);
 		} catch (Exception e) {
@@ -245,7 +235,7 @@ public class IndexerJobTest {
 		}
 		boolean result = indexerJob.reinitKafkaSucessful(null);
 		assertTrue(indexerJob.getIndexerJobStatus().getJobStatus().equals(IndexerJobStatusEnum.Failed));
-		assertTrue(!result);
+		assertFalse(result);
 	}
 
 	@Test
