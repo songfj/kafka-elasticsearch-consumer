@@ -27,7 +27,7 @@ import java.util.concurrent.ExecutionException;
 public class ElasticSearchBatchService {
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchBatchService.class);
 
-    private Map<String, BulkRequestBuilder> bulkRequestBuilders;
+    private Map<String, BulkRequestBuilder> bulkRequestBuilders = new HashMap<>();
     @Autowired
     private ElasticSearchClientService elasticSearchClientService;
 
@@ -51,7 +51,12 @@ public class ElasticSearchBatchService {
     }
 
     public boolean postToElasticSearch() throws Exception {
+    	if (bulkRequestBuilders.isEmpty()) {
+    		logger.warn("bulkRequestBuilders are empty - nothing to index into ES");
+    		return true;
+    	}
         try {
+        	logger.info("Starting bulk posts to ES; # of indexes to post to: {}", bulkRequestBuilders.size());
             for (Map.Entry<String, BulkRequestBuilder> entry : bulkRequestBuilders.entrySet()) {
                 BulkRequestBuilder bulkRequestBuilder = entry.getValue();
                 postBulkToEs(bulkRequestBuilder);

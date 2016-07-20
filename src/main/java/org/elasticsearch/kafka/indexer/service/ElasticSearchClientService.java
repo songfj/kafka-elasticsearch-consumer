@@ -102,7 +102,7 @@ public class ElasticSearchClientService {
 					logger.error("Re-trying connect to ES, try# {} - failed after the last retry", i);						
 					//throw new IndexerESException("ERROR: failed to connect to ES after max number of retiries, partition: " +
 					//		currentPartition);
-					throw new IndexerESException("ERROR: failed to connect to ES after max number of retiries ");
+					throw new IndexerESException("ERROR: failed to connect to ES after max number of retries ");
 				}
 			}
 		}
