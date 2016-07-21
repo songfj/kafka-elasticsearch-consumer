@@ -1,8 +1,5 @@
 package org.elasticsearch.kafka.indexer.service;
 
-import com.netflix.curator.framework.CuratorFramework;
-import com.netflix.curator.framework.CuratorFrameworkFactory;
-import com.netflix.curator.retry.RetryNTimes;
 import kafka.api.FetchRequest;
 import kafka.api.FetchRequestBuilder;
 import kafka.api.OffsetRequest;
@@ -81,7 +78,6 @@ public class KafkaClientService {
     @Value("${leaderFindRetryCount:5}")
     private int leaderFindRetryCount ;
 
-    private CuratorFramework curator;
     private SimpleConsumer simpleConsumer;
     private String kafkaClientId;
     private  int partition =-1;
@@ -108,7 +104,6 @@ public class KafkaClientService {
         logger.info("kafkaClientId: {}", kafkaClientId);
         logger.info("topic: {}", topic);
         logger.info("partition: {}", partition);
-        connectToZooKeeper();
         findLeader();
         initConsumer();
     }
@@ -123,7 +118,6 @@ public class KafkaClientService {
                         partition, kafkaReinitSleepTimeMs);
                 Thread.sleep(kafkaReinitSleepTimeMs);
                 logger.info("Connecting to zookeeper again for partition {}", partition);
-                connectToZooKeeper();
                 findLeader();
                 initConsumer();
                 logger.info(".. trying to get offsets for partition={} ... ", partition);
@@ -145,22 +139,9 @@ public class KafkaClientService {
             }
         }
     }
-
-    public void connectToZooKeeper() throws Exception {
-        try {
-            curator = CuratorFrameworkFactory.newClient(kafkaZookeeperList, zkSessionTimeoutMs, zkConnectionTimeoutMs,
-                    new RetryNTimes(zkCuratorRetryTimes, zkCuratorRetryDelayMs));
-            curator.start();
-            logger.info("Connected to Kafka Zookeeper successfully");
-        } catch (Exception e) {
-            logger.error("Failed to connect to Zookeer: " + e.getMessage());
-            throw e;
-        }
-    }
-
     public void initConsumer() throws Exception {
         try {
-            this.simpleConsumer = new SimpleConsumer(
+            simpleConsumer = new SimpleConsumer(
                     leaderBrokerHost, leaderBrokerPort, kafkaSimpleConsumerSocketTimeoutMs,
                     kafkaSimpleConsumerBufferSizeBytes, kafkaClientId);
             logger.info("Initialized Kafka Consumer successfully for partition {}", partition);
@@ -528,8 +509,9 @@ public class KafkaClientService {
     }
 
     public void close() {
-        curator.close();
-        logger.info("Curator/Zookeeper connection closed");
+    	if (simpleConsumer != null)
+    		simpleConsumer.close();
+        logger.info("Consumer instance is closed");
     }
 
     public int getPartition() {
