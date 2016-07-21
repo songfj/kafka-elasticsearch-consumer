@@ -5,6 +5,7 @@ import kafka.javaapi.FetchResponse;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.Message;
 import kafka.message.MessageAndOffset;
+
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.kafka.indexer.FailedEventsLogger;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
@@ -125,18 +126,28 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
         long jobStartTime = System.currentTimeMillis();
         determineOffsetForThisRound();
         ByteBufferMessageSet byteBufferMsgSet = getMessageAndOffsets(jobStartTime);
+        if (byteBufferMsgSet == null) 
+        	return;
 
-        if (byteBufferMsgSet != null) {
-            logger.debug("Starting to prepare for post to ElasticSearch for partition {}", currentPartition);
-            long proposedNextOffsetToProcess = addMessagesToBatch(jobStartTime, byteBufferMsgSet);
-            if (isDryRun) {
-                logger.info("**** This is a dry run, NOT committing the offset in Kafka nor posting to ES for partition {}****", currentPartition);
-                return;
-            }
-            boolean isPostSuccessful = postBatchToElasticSearch(proposedNextOffsetToProcess);
-            if (isPostSuccessful) {
-                commitOffSet(jobStartTime);
-            }
+        logger.debug("Starting to process messages from the current batch for partition {}", currentPartition);
+        BatchCreationResult batchCreationResult = addMessagesToBatch(jobStartTime, byteBufferMsgSet);
+        long proposedNextOffsetToProcess = batchCreationResult.getOffsetOfNextBatch();
+        boolean batchCreationSuccessful = batchCreationResult.isBatchCreationSuccessful();
+        if (!batchCreationSuccessful) {
+        	// this is the case when ALL messages in the batch failed to be added to the ES 
+        	// index builders due to parsing/mapping/Mongo issues - skip the whole batch
+            nextOffsetToProcess = proposedNextOffsetToProcess;
+        	commitOffSet(jobStartTime);
+        	return;
+        }
+        if (isDryRun) {
+            logger.info("**** This is a dry run, NOT committing the offset in Kafka nor posting to ES for partition {}****", currentPartition);
+            return;
+        }
+        boolean moveToNextBatch = postBatchToElasticSearch(proposedNextOffsetToProcess);
+        if (moveToNextBatch) {
+            nextOffsetToProcess = proposedNextOffsetToProcess;
+            commitOffSet(jobStartTime);
         }
     }
 
@@ -172,15 +183,19 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 
     /**
      * TODO: we are loosing the ability to set Job's status to HANGING in case ES is unreachable and
-     * re-connect to ES takes awhile ... See if it is possible to re-introduce it in another way
-     * ElasticsearchException e :
+     * re-connect to ES takes awhile ... See if it is possible to re-introduce it in another way;
+     * ElasticsearchException handling:
      *      we are assuming that these exceptions are data-specific - continue and commit the offset,
      *      but be aware that ALL messages from this batch are NOT indexed into ES
+     * IndexerESException handling:
+     * 		we are assuming that these exceptions are transient , and the batch processing can be re-tried
+     * 
      * @param proposedNextOffsetToProcess
      * @return
      * @throws Exception
      */
-    protected boolean postBatchToElasticSearch(long proposedNextOffsetToProcess) throws Exception {
+	protected boolean postBatchToElasticSearch(long proposedNextOffsetToProcess) throws Exception {
+    	boolean moveToNextBatch = true;
         try {
             logger.info("About to post messages to ElasticSearch for partition={}, offsets {}-->{} ",
                     currentPartition, offsetForThisRound, proposedNextOffsetToProcess - 1);
@@ -189,22 +204,21 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
             logger.error("Error posting messages to Elastic Search for offsets {}-->{} " +
                             " in partition={} - will re-try processing the batch; error: {}",
                     offsetForThisRound, proposedNextOffsetToProcess - 1, currentPartition, e.getMessage());
-            return false;
+            moveToNextBatch = false;
         } catch (ElasticsearchException e) {
             logger.error("Error posting messages to ElasticSearch for offset {}-->{} in partition {} skipping them: ",
                     offsetForThisRound, proposedNextOffsetToProcess - 1, currentPartition, e);
             FailedEventsLogger.logFailedEvent(offsetForThisRound, proposedNextOffsetToProcess - 1, currentPartition, e.getDetailedMessage(), null);
         }
-
-        nextOffsetToProcess = proposedNextOffsetToProcess;
-        return true;
+        return moveToNextBatch;
     }
 
-    protected long addMessagesToBatch(long jobStartTime, ByteBufferMessageSet byteBufferMsgSet) {
+	protected BatchCreationResult addMessagesToBatch(long jobStartTime, ByteBufferMessageSet byteBufferMsgSet){
         int numProcessedMessages = 0;
         int numSkippedIndexingMessages = 0;
         int numMessagesInBatch = 0;
         long offsetOfNextBatch = 0;
+        boolean batchCreationSuccessful = true;
         Iterator<MessageAndOffset> messageAndOffsetIterator = byteBufferMsgSet.iterator();
 
         while (messageAndOffsetIterator.hasNext()) {
@@ -212,18 +226,19 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
             MessageAndOffset messageAndOffset = messageAndOffsetIterator.next();
             offsetOfNextBatch = messageAndOffset.nextOffset();
             Message message = messageAndOffset.message();
+            long thisMessageOffset = messageAndOffset.offset();
             ByteBuffer payload = message.payload();
             byte[] bytesMessage = new byte[payload.limit()];
             payload.get(bytesMessage);
             try {
-                byte[] transformedMessage = messageHandlerService.transformMessage(bytesMessage,messageAndOffset.offset());
-                messageHandlerService.addMessageToBatch(transformedMessage,messageAndOffset.offset());
+                byte[] transformedMessage = messageHandlerService.transformMessage(bytesMessage, thisMessageOffset);
+                messageHandlerService.addMessageToBatch(transformedMessage, thisMessageOffset);
                 numProcessedMessages++;
             } catch (Exception e) {
                 numSkippedIndexingMessages++;
                 String msgStr = new String(bytesMessage);
-                logger.error("ERROR processing message at offset={} - skipping it: {}", messageAndOffset.offset(), msgStr, e);
-                FailedEventsLogger.logFailedToTransformEvent(messageAndOffset.offset(), e.getMessage(), msgStr);
+                logger.error("ERROR processing message at offset={} - skipping it: {}", thisMessageOffset, msgStr, e);
+                FailedEventsLogger.logFailedToTransformEvent(thisMessageOffset, e.getMessage(), msgStr);
             }
         }
         logger.info("Total # of messages in this batch: {}; " +
@@ -235,7 +250,11 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
             logger.debug("Completed preparing for post to ElasticSearch. Approx time taken: {}ms for partition {}",
                     (timeAtPrepareES - jobStartTime), currentPartition);
         }
-        return offsetOfNextBatch;
+        if (numMessagesInBatch > 0 && numProcessedMessages == 0 ) {
+        	logger.error("All messages in the batch failed to be added to the index builders - skip this batch");
+        	batchCreationSuccessful = false;
+        }
+        return new BatchCreationResult(offsetOfNextBatch, batchCreationSuccessful);
     }
 
     /**
@@ -320,6 +339,25 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 
 	public void setDryRun(boolean isDryRun) {
 		this.isDryRun = isDryRun;
+	}
+	
+	public class BatchCreationResult {
+		private long offsetOfNextBatch;
+		private boolean batchCreationSuccessful;
+		
+		public BatchCreationResult(long offsetOfNextBatch, boolean batchCreationSuccessful){
+			this.offsetOfNextBatch = offsetOfNextBatch;
+			this.batchCreationSuccessful = batchCreationSuccessful;
+		}
+
+		public long getOffsetOfNextBatch() {
+			return offsetOfNextBatch;
+		}
+
+		public boolean isBatchCreationSuccessful() {
+			return batchCreationSuccessful;
+		}
+		
 	}
 
    public void setOffsetForThisRound(long offsetForThisRound) {

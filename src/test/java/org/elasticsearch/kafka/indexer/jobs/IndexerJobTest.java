@@ -10,6 +10,7 @@ import java.util.List;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
 import org.elasticsearch.kafka.indexer.exception.KafkaClientRecoverableException;
+import org.elasticsearch.kafka.indexer.jobs.IndexerJob.BatchCreationResult;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
 import org.elasticsearch.kafka.indexer.service.KafkaClientService;
 import org.junit.Before;
@@ -168,7 +169,8 @@ public class IndexerJobTest {
 	@Test
 	public void addMessagesToBatchTest() {
 		// verify that 2 messages were processed
-		long offset = indexerJob.addMessagesToBatch(0, byteBufferMsgSet);
+		BatchCreationResult batchCreationResult = indexerJob.addMessagesToBatch(0, byteBufferMsgSet);
+		long offset = batchCreationResult.getOffsetOfNextBatch();
 		assertTrue(offset == messages.size());
 		try {
 			Mockito.verify(messageHandler, Mockito.times(messages.size())).addMessageToBatch(Matchers.any(),
