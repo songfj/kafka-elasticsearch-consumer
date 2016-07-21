@@ -27,20 +27,20 @@ public class KafkaClientService {
     @Value("${topic:my_log_topic}")
     private String topic;
     // Kafka ZooKeeper's IP Address/HostName : port list
-    @Value("${kafkaZookeeperList:localhost:2181}")
-    private String kafkaZookeeperList;
+    //@Value("${kafkaZookeeperList:localhost:2181}")
+    //private String kafkaZookeeperList;
     // Zookeeper session timeout in MS
-    @Value("${zkSessionTimeoutMs:1000}")
-    private int zkSessionTimeoutMs;
+    //@Value("${zkSessionTimeoutMs:1000}")
+    //private int zkSessionTimeoutMs;
     // Zookeeper connection timeout in MS
-    @Value("${zkConnectionTimeoutMs:15000}")
-    private int zkConnectionTimeoutMs;
+    //@Value("${zkConnectionTimeoutMs:15000}")
+    //private int zkConnectionTimeoutMs;
     // Zookeeper number of retries when creating a curator client
-    @Value("${zkCuratorRetryTimes:3}")
-    private int zkCuratorRetryTimes;
+    //@Value("${zkCuratorRetryTimes:3}")
+    //private int zkCuratorRetryTimes;
     // Zookeeper: time in ms between re-tries when creating a Curator
-    @Value("${zkCuratorRetryDelayMs:2000}")
-    private int zkCuratorRetryDelayMs;
+    //@Value("${zkCuratorRetryDelayMs:2000}")
+    //private int zkCuratorRetryDelayMs;
     @Value("${kafkaBrokersList:localhost:9092}")
     private String kafkaBrokersList;
     private String[] kafkaBrokersArray;
@@ -99,7 +99,7 @@ public class KafkaClientService {
         kafkaClientId = consumerGroupName + "_" + partition;
         kafkaBrokersArray = kafkaBrokersList.trim().split(",");
         logger.info("### KafkaClient Config: ###");
-        logger.info("kafkaZookeeperList: {}", kafkaZookeeperList);
+        //logger.info("kafkaZookeeperList: {}", kafkaZookeeperList);
         logger.info("kafkaBrokersList: {}", kafkaBrokersList);
         logger.info("kafkaClientId: {}", kafkaClientId);
         logger.info("topic: {}", topic);
