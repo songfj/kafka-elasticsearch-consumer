@@ -76,6 +76,14 @@
 
 * run `./kafka-elasticsearch-consumer -Dindexer.properties=/your/absolute/path/kafka-es-indexer.properties -Dlogback.configurationFile=/your/absolute/path/logback.xml` script
 
+### Running via provided run_indexer.sh script:
+
+* Steps 1 - 6 are the same
+* run:  './gradlew clean installDist' - this will create a folder $INDEXER_HOME/build/install/kafka-elasticsearch-consumer/lib with all dependencies and the application jar (kafka-elasticsearch-consumer-0.0.2.0.jar)
+
+* update (or create a copy of) the run_indexer.sh script - update all paths
+* run `./run_indexer.sh` script
+
 
 # Versions
 
