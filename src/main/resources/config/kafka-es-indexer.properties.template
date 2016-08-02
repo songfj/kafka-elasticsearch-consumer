@@ -74,20 +74,6 @@ esIndexName=kafkaESIndex
 # Default: “kafkaESType” 
 esIndexType=kafkaESType
 
-# Fully qualified name of a concrete message handler class
-# Default: "org.elasticsearch.kafka.consumer.RawMessageStringHandler"
-# Custom class should be extended from org.elasticsearch.kafka.consumer.MessageHandler class
-messageHandlerClass=org.elasticsearch.kafka.indexer.messageHandlers.RawMessageStringHandler
-
-# Fully qualified name of a custom IndexHandler implementation class
-# Default: org.elasticsearch.kafka.consumer.BasicIndexHandler
-indexHandlerClass=org.elasticsearch.kafka.indexer.BasicIndexHandler
-
-
-# Preferred message encoding to process the message before posting it to ElasticSearch.
-# Default: "UTF-8" 
-messageEncoding=UTF-8
-
 # Dry runs will not post to elasticsearch and won’t commit the offset to Kafka
 isDryRun=false
 
