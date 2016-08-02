@@ -21,13 +21,13 @@ echo "LOGBACK_CONFIG_FILE=$LOGBACK_CONFIG_FILE"
 echo "INDEXER_PROPERTIES_FILE=$INDEXER_PROPERTIES_FILE"
 
 # add all dependent jars to the classpath
-for file in $INDEXER_HOME/bin/lib/*.jar;
+for file in $INDEXER_HOME/build/install/kafka-elasticsearch-consumer/lib/*.jar;
 do
   CLASS_PATH=$CLASS_PATH:$file
 done
 echo "CLASS_PATH=$CLASS_PATH"
 
-$JAVA_HOME/bin/java -Xmx1g -cp $CLASS_PATH -Dlogback.configurationFile=$LOGBACK_CONFIG_FILE org.elasticsearch.kafka.indexer.process.KafkaElasticSearchProcess $INDEXER_PROPERTIES_FILE
+$JAVA_HOME/bin/java -Xmx1g -cp $CLASS_PATH -Dindexer.properties=$INDEXER_PROPERTIES_FILE -Dlogback.configurationFile=$LOGBACK_CONFIG_FILE org.elasticsearch.kafka.indexer.KafkaESIndexerProcess 
 
 
 
