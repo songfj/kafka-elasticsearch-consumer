@@ -1,5 +1,8 @@
 package org.elasticsearch.kafka.indexer.service;
 
+import java.util.Iterator;
+import java.util.concurrent.ExecutionException;
+
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
@@ -14,11 +17,6 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-
 /**
  * Created by dhyan on 4/11/16.
  */
@@ -26,11 +24,17 @@ import java.util.concurrent.ExecutionException;
 @Scope(value = BeanDefinition.SCOPE_PROTOTYPE)
 public class ElasticSearchBatchService {
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchBatchService.class);
-
-    private Map<String, BulkRequestBuilder> bulkRequestBuilders = new HashMap<>();
+    private BulkRequestBuilder bulkRequestBuilder;
+  //  private Map<String, BulkRequestBuilder> bulkRequestBuilders = new HashMap<>();
     @Autowired
     private ElasticSearchClientService elasticSearchClientService;
 
+    private void initBulkRequestBuilder(){
+    	if (bulkRequestBuilder == null){
+    		bulkRequestBuilder = elasticSearchClientService.prepareBulk();
+    	}
+    }
+    
     /**
      * 
      * @param inputMessage - message body 	
@@ -41,49 +45,28 @@ public class ElasticSearchBatchService {
      * @throws ExecutionException
      */
     public void addEventToBulkRequest(String inputMessage, String indexName, String indexType, String eventUUID, String routingValue) throws ExecutionException {
-        BulkRequestBuilder builderForThisIndex = getBulkRequestBuilder(indexName);
+    	initBulkRequestBuilder();
         IndexRequestBuilder indexRequestBuilder = elasticSearchClientService.prepareIndex(indexName, indexType, eventUUID);
         indexRequestBuilder.setSource(inputMessage);
         if (routingValue != null && routingValue.trim().length()>0) {
             indexRequestBuilder.setRouting(routingValue);
         }
-        builderForThisIndex.add(indexRequestBuilder);
+        bulkRequestBuilder.add(indexRequestBuilder);
     }
 
     public boolean postToElasticSearch() throws Exception {
-    	if (bulkRequestBuilders.isEmpty()) {
-    		logger.warn("bulkRequestBuilders are empty - nothing to index into ES");
-    		return true;
-    	}
+
         try {
-        	logger.info("Starting bulk posts to ES; # of indexes to post to: {}", bulkRequestBuilders.size());
-            for (Map.Entry<String, BulkRequestBuilder> entry : bulkRequestBuilders.entrySet()) {
-                BulkRequestBuilder bulkRequestBuilder = entry.getValue();
-                postBulkToEs(bulkRequestBuilder);
+        	logger.info("Starting bulk posts to ES");
+
+               postBulkToEs(bulkRequestBuilder);
                logger.info("Bulk post to ES finished Ok for index: {}; # of messages: {}",
-                        entry.getKey(), bulkRequestBuilder.numberOfActions());
-            }
+                      bulkRequestBuilder.numberOfActions());
+          
         } finally {
-            bulkRequestBuilders.clear();
+            bulkRequestBuilder = null;
         }
         return true;
-    }
-
-    /**
-     * Add initialization of the hashmap here as well, to enable unit testing of individual methods of this class
-     * without calling prepareForPostToElasticSearch() as the first method always
-     * @param indexName
-     * @return
-     */
-    private BulkRequestBuilder getBulkRequestBuilder(String indexName) {
-        if (bulkRequestBuilders == null)
-            bulkRequestBuilders = new HashMap<>();
-        BulkRequestBuilder bulkRequestBuilder = bulkRequestBuilders.get(indexName);
-        if (bulkRequestBuilder == null) {
-            bulkRequestBuilder = elasticSearchClientService.prepareBulk();
-            bulkRequestBuilders.put(indexName, bulkRequestBuilder);
-        }
-        return bulkRequestBuilder;
     }
 
     protected void postBulkToEs(BulkRequestBuilder bulkRequestBuilder)
@@ -133,10 +116,6 @@ public class ElasticSearchBatchService {
             }
             logger.error("FAILURES: # of failed to post messages to ElasticSearch: {} ", failedCount);
         } 
-    }
-
-    public Map<String, BulkRequestBuilder> getBulkRequestBuilders() {
-        return bulkRequestBuilders;
     }
 
     public ElasticSearchClientService getElasticSearchClientService() {
