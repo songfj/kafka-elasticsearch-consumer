@@ -76,8 +76,7 @@ public class ElasticSearchBatchServiceTest {
 			fail("Unexpected exception from unit test: " + e.getMessage());
 		}
 		
-		int bulkRequestBuildersSize = elasticSearchBatchService.getBulkRequestBuilders().size();
-		assertTrue(bulkRequestBuildersSize == 1);
+		
 		// verify we called the prepareIndex with eventUUID
 		Mockito.verify(elasticSearchClientService, Mockito.times(1)).prepareIndex(testIndexName, testIndexType,
 				eventUUID);
