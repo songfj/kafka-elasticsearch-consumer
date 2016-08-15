@@ -7,6 +7,8 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
+import org.elasticsearch.kafka.indexer.exception.IndexerESNotRecoverableException;
+import org.elasticsearch.kafka.indexer.exception.IndexerESRecoverableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +52,7 @@ public class ElasticSearchBatchService {
         builderForThisIndex.add(indexRequestBuilder);
     }
 
-    public boolean postToElasticSearch() throws Exception {
+    public boolean postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException {
     	if (bulkRequestBuilders.isEmpty()) {
     		logger.warn("bulkRequestBuilders are empty - nothing to index into ES");
     		return true;
@@ -87,7 +89,7 @@ public class ElasticSearchBatchService {
     }
 
     protected void postBulkToEs(BulkRequestBuilder bulkRequestBuilder)
-            throws InterruptedException, IndexerESException {
+            throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException {
         BulkResponse bulkResponse = null;
         BulkItemResponse bulkItemResp = null;
         //Nothing/NoMessages to post to ElasticSearch
@@ -104,12 +106,12 @@ public class ElasticSearchBatchService {
                     "NoNodeAvailableException - ES cluster is unreachable, will try to re-connect after sleeping ... ", e);
             elasticSearchClientService.reInitElasticSearch();
             //even if re-init of ES succeeded - throw an Exception to re-process the current batch
-            throw new IndexerESException("Recovering after an NoNodeAvailableException posting messages to Elastic Search " +
+            throw new IndexerESRecoverableException("Recovering after an NoNodeAvailableException posting messages to Elastic Search " +
                     " - will re-try processing current batch");
         } catch (ElasticsearchException e) {
             logger.error("Failed to post messages to ElasticSearch: " + e.getMessage(), e);
-            throw e;
-        }
+            throw new IndexerESRecoverableException(e);
+        } 
         logger.debug("Time to post messages to ElasticSearch: {} ms", bulkResponse.getTookInMillis());
         if (bulkResponse.hasFailures()) {
             logger.error("Bulk Message Post to ElasticSearch has errors: {}",

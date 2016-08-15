@@ -109,7 +109,7 @@ public class KafkaClientService {
     }
 
 
-    public void reInitKafka() throws Exception {
+    public void reInitKafka() throws KafkaClientRecoverableException{
         for (int i = 0; i < numOfReinitAttempts; i++) {
             try {
                 logger.info("Re-initializing KafkaClient for partition {}, try # {}", partition, i);
@@ -347,7 +347,7 @@ public class KafkaClientService {
         }
     }
 
-    public long computeInitialOffset() throws Exception {
+    public long computeInitialOffset() throws KafkaClientRecoverableException, KafkaClientNotRecoverableException {
         long offsetForThisRound = -1L;
         long earliestOffset = getEarliestOffset();
         // TODO 6: use Enum for startOffsetFrom values
@@ -438,7 +438,7 @@ public class KafkaClientService {
     // TODO 1: review how we handle each type of errors - some should fail the whole batch, not just ignored or re-tried
     // TODO 2: also make sure we do not re-process the same batch forever: call() -> reInitKafka() -> call() -> ...
     // TODO 3: verify that the only case when we need to roll-back to the Earliest offset is  the OffsetOutOfRange error
-    public Long handleErrorFromFetchMessages(short errorCode, long offsetForThisRound) throws Exception {
+    public Long handleErrorFromFetchMessages(short errorCode, long offsetForThisRound) throws KafkaClientRecoverableException, KafkaClientNotRecoverableException {
         // Do things according to the error code
         logger.error("Error fetching events from Kafka, error code={}, partition={}",
                 errorCode, partition);
@@ -472,7 +472,7 @@ public class KafkaClientService {
             if (earliestOffset < 0) {
                 logger.error("OffsetOutOfRangeCode error for partition={} - EARLIEST offset is bad: {}, exiting with an exception",
                         partition, earliestOffset);
-                throw new Exception("OffsetOutOfRangeCode error for partition=" + partition +
+                throw new KafkaClientNotRecoverableException("OffsetOutOfRangeCode error for partition=" + partition +
                         " - EARLIEST offset is bad: " + earliestOffset + ", exiting with an exception");
             }
             logger.info("OffsetOutOfRangeCode error: setting offset for partition {} to the EARLIEST possible offset: {}",
@@ -483,7 +483,7 @@ public class KafkaClientService {
                 // throw an exception as this will break reading messages in the next round
                 // TODO 5: verify that the IndexerJob is stopped cleanly in this case
                 logger.error("Failed to commit offset in Kafka after OffsetOutOfRangeCode - exiting for partition {} ", partition, e);
-                throw e;
+                throw new KafkaClientNotRecoverableException(e);
             }
             return earliestOffset;
         } else if (errorCode == ErrorMapping.ReplicaNotAvailableCode()) {

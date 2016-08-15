@@ -2,6 +2,8 @@ package org.elasticsearch.kafka.indexer.service.impl.examples;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.elasticsearch.kafka.indexer.exception.IndexerESNotRecoverableException;
+import org.elasticsearch.kafka.indexer.exception.IndexerESRecoverableException;
 import org.elasticsearch.kafka.indexer.service.ElasticSearchBatchService;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +38,7 @@ public class AccessLogMessageHandlerImpl implements IMessageHandler {
     }
 
     @Override
-    public boolean postToElasticSearch() throws Exception {
+    public boolean postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException {
         return elasticSearchBatchService.postToElasticSearch();
 
     }

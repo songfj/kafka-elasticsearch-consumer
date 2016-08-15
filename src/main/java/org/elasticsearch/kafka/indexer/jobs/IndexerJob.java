@@ -1,14 +1,12 @@
 package org.elasticsearch.kafka.indexer.jobs;
 
-import kafka.common.ErrorMapping;
-import kafka.javaapi.FetchResponse;
-import kafka.javaapi.message.ByteBufferMessageSet;
-import kafka.message.Message;
-import kafka.message.MessageAndOffset;
+import java.nio.ByteBuffer;
+import java.util.Iterator;
+import java.util.concurrent.Callable;
 
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.kafka.indexer.FailedEventsLogger;
-import org.elasticsearch.kafka.indexer.exception.IndexerESException;
+import org.elasticsearch.kafka.indexer.exception.IndexerESNotRecoverableException;
+import org.elasticsearch.kafka.indexer.exception.IndexerESRecoverableException;
 import org.elasticsearch.kafka.indexer.exception.KafkaClientNotRecoverableException;
 import org.elasticsearch.kafka.indexer.exception.KafkaClientRecoverableException;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
@@ -16,9 +14,11 @@ import org.elasticsearch.kafka.indexer.service.KafkaClientService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
-import java.util.Iterator;
-import java.util.concurrent.Callable;
+import kafka.common.ErrorMapping;
+import kafka.javaapi.FetchResponse;
+import kafka.javaapi.message.ByteBufferMessageSet;
+import kafka.message.Message;
+import kafka.message.MessageAndOffset;
 
 public class IndexerJob implements Callable<IndexerJobStatus> {
 
@@ -72,7 +72,7 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
                 indexerJobStatus.setJobStatus(IndexerJobStatusEnum.InProgress);
                 Thread.sleep(consumerSleepBetweenFetchsMs);
                 logger.debug("Completed a round of indexing into ES for partition {}", currentPartition);
-            } catch (IndexerESException | KafkaClientNotRecoverableException e) {
+            } catch (IndexerESNotRecoverableException | KafkaClientNotRecoverableException e) {
                 indexerJobStatus.setJobStatus(IndexerJobStatusEnum.Failed);
                 stopClients();
                 break;
@@ -120,9 +120,13 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
 
     /**
      * save nextOffsetToProcess in temporary field,and save it after successful execution of indexIntoESWithRetries method
+     * @throws KafkaClientRecoverableException 
+     * @throws IndexerESNotRecoverableException 
+     * @throws InterruptedException 
+     * @throws KafkaClientNotRecoverableException 
      * @throws Exception
      */
-    public void processMessagesFromKafka() throws Exception {
+    public void processMessagesFromKafka() throws KafkaClientRecoverableException, InterruptedException, IndexerESNotRecoverableException, KafkaClientNotRecoverableException {
         long jobStartTime = System.currentTimeMillis();
         determineOffsetForThisRound();
         ByteBufferMessageSet byteBufferMsgSet = getMessageAndOffsets(jobStartTime);
@@ -192,24 +196,22 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      * 
      * @param proposedNextOffsetToProcess
      * @return
+     * @throws IndexerESNotRecoverableException 
+     * @throws InterruptedException 
      * @throws Exception
      */
-	protected boolean postBatchToElasticSearch(long proposedNextOffsetToProcess) throws Exception {
+	protected boolean postBatchToElasticSearch(long proposedNextOffsetToProcess) throws InterruptedException, IndexerESNotRecoverableException  {
     	boolean moveToNextBatch = true;
         try {
             logger.info("About to post messages to ElasticSearch for partition={}, offsets {}-->{} ",
                     currentPartition, offsetForThisRound, proposedNextOffsetToProcess - 1);
             messageHandlerService.postToElasticSearch();
-        } catch (IndexerESException e) {
+        } catch (IndexerESRecoverableException e) {
             logger.error("Error posting messages to Elastic Search for offsets {}-->{} " +
                             " in partition={} - will re-try processing the batch; error: {}",
                     offsetForThisRound, proposedNextOffsetToProcess - 1, currentPartition, e.getMessage());
             moveToNextBatch = false;
-        } catch (ElasticsearchException e) {
-            logger.error("Error posting messages to ElasticSearch for offset {}-->{} in partition {} skipping them: ",
-                    offsetForThisRound, proposedNextOffsetToProcess - 1, currentPartition, e);
-            FailedEventsLogger.logFailedEvent(offsetForThisRound, proposedNextOffsetToProcess - 1, currentPartition, e.getDetailedMessage(), null);
-        }
+        } 
         return moveToNextBatch;
     }
 
@@ -267,9 +269,11 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      *  but the latestOffset reported by Kafka is higher than what consumer is trying to read from;
      * @param jobStartTime
      * @return
+     * @throws KafkaClientRecoverableException 
+     * @throws KafkaClientNotRecoverableException 
      * @throws Exception
      */
-    protected ByteBufferMessageSet getMessageAndOffsets(long jobStartTime) throws Exception {
+    protected ByteBufferMessageSet getMessageAndOffsets(long jobStartTime) throws KafkaClientRecoverableException, KafkaClientNotRecoverableException {
         FetchResponse fetchResponse = kafkaClient.getMessagesFromKafka(offsetForThisRound);
         ByteBufferMessageSet byteBufferMsgSet = null;
         if (fetchResponse.hasError()) {
@@ -306,9 +310,11 @@ public class IndexerJob implements Callable<IndexerJobStatus> {
      * 2) Do not handle exceptions here - they will be taken care of in the computeOffset()
      *     If this is the only thread that is processing data from this partition
      * TODO  see if we are doing this too early - before we actually commit the offset
+     * @throws KafkaClientNotRecoverableException 
+     * @throws KafkaClientRecoverableException 
      * @throws Exception
      */
-    protected void determineOffsetForThisRound() throws Exception {
+    protected void determineOffsetForThisRound() throws KafkaClientRecoverableException, KafkaClientNotRecoverableException {
 
         if (!isStartingFirstTime) {
             offsetForThisRound = nextOffsetToProcess;
