@@ -1,14 +1,13 @@
 package org.elasticsearch.kafka.indexer.jobs;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.kafka.indexer.exception.IndexerESException;
+import org.elasticsearch.kafka.indexer.exception.IndexerESRecoverableException;
 import org.elasticsearch.kafka.indexer.exception.KafkaClientRecoverableException;
 import org.elasticsearch.kafka.indexer.jobs.IndexerJob.BatchCreationResult;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
@@ -21,7 +20,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
-import junit.framework.Assert;
 import kafka.javaapi.FetchResponse;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.Message;
@@ -102,7 +100,7 @@ public class IndexerJobTest {
 			fail("Unexpected exception from unit test: " + e.getMessage());
 		}
 		try {
-			Mockito.when(messageHandler.postToElasticSearch()).thenThrow(new IndexerESException());
+			Mockito.when(messageHandler.postToElasticSearch()).thenThrow(new IndexerESRecoverableException());
 			assertTrue(indexerJob.postBatchToElasticSearch(0L) == false);
 		} catch (Exception e) {
 			fail("Unexpected exception from unit test: " + e.getMessage());
@@ -114,8 +112,9 @@ public class IndexerJobTest {
 	public void postBatchToElasticSearch_ESException() {
 
 		try {
-			Mockito.when(messageHandler.postToElasticSearch()).thenThrow(new ElasticsearchException("Exception"));
-			assertTrue(indexerJob.postBatchToElasticSearch(0L));
+			Mockito.when(messageHandler.postToElasticSearch()).thenThrow(new IndexerESRecoverableException("Exception"));
+			//verify that postBatchToElasticSearch will not throw exception
+			indexerJob.postBatchToElasticSearch(0L);
 		} catch (Exception e) {
 			fail("Unexpected exception from unit test: " + e.getMessage());
 		}
@@ -231,7 +230,7 @@ public class IndexerJobTest {
 	@Test
 	public void reinitKafkaSucessfulTest_Exception() {
 		try {
-			Mockito.doThrow(new Exception()).when(kafkaClientService).reInitKafka();
+			Mockito.doThrow(new KafkaClientRecoverableException()).when(kafkaClientService).reInitKafka();
 		} catch (Exception e) {
 			fail("Unexpected exception from unit test: " + e.getMessage());
 		}
