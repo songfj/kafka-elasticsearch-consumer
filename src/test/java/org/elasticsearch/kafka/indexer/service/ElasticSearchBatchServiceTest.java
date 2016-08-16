@@ -13,6 +13,8 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
+import org.elasticsearch.kafka.indexer.exception.IndexerESNotRecoverableException;
+import org.elasticsearch.kafka.indexer.exception.IndexerESRecoverableException;
 import org.elasticsearch.rest.RestStatus;
 import org.junit.Before;
 import org.junit.Test;
@@ -109,7 +111,7 @@ public class ElasticSearchBatchServiceTest {
 			elasticSearchBatchService.postToElasticSearch();
 		} catch (InterruptedException e) {
 			fail("Unexpected exception from unit test: " + e.getMessage());
-		} catch (IndexerESException e) {
+		} catch (IndexerESRecoverableException e) {
 			System.out.println(
 					"Cought expected NoNodeAvailableException/IndexerESException from unit test: " + e.getMessage());
 		} catch (Exception e) {
@@ -120,7 +122,7 @@ public class ElasticSearchBatchServiceTest {
 		// verify that reInitElasticSearch() was called
 		try {
 			Mockito.verify(elasticSearchClientService, Mockito.times(1)).reInitElasticSearch();
-		} catch (InterruptedException | IndexerESException e) {
+		} catch (InterruptedException | IndexerESNotRecoverableException e) {
 			fail("Unexpected exception from unit test: " + e.getMessage());
 		}
 	}
@@ -159,7 +161,7 @@ public class ElasticSearchBatchServiceTest {
 
 		try {
 			elasticSearchBatchService.postToElasticSearch();
-		} catch (InterruptedException | IndexerESException e) {
+		} catch (InterruptedException | IndexerESNotRecoverableException e) {
 			fail("Unexpected exception from unit test: " + e.getMessage());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -170,7 +172,7 @@ public class ElasticSearchBatchServiceTest {
 		// verify that reInit was not called
 		try {
 			Mockito.verify(elasticSearchClientService, Mockito.times(0)).reInitElasticSearch();
-		} catch (InterruptedException | IndexerESException e) {
+		} catch (InterruptedException | IndexerESNotRecoverableException e) {
 			fail("Unexpected exception from unit test: " + e.getMessage());
 		}
 

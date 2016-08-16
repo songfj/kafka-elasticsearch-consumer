@@ -1,5 +1,8 @@
 package org.elasticsearch.kafka.indexer.service;
 
+import org.elasticsearch.kafka.indexer.exception.IndexerESNotRecoverableException;
+import org.elasticsearch.kafka.indexer.exception.IndexerESRecoverableException;
+
 /**
  * Created by dhyan on 1/28/16.
  */
@@ -21,7 +24,7 @@ public interface IMessageHandler {
      * @return
      * @throws Exception
      */
-    public boolean postToElasticSearch() throws Exception;
+    public boolean postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException;
     
 
 

@@ -7,6 +7,7 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.kafka.indexer.exception.IndexerESException;
+import org.elasticsearch.kafka.indexer.exception.IndexerESNotRecoverableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -80,7 +81,7 @@ public class ElasticSearchClientService {
 			esTransportClient.close();
     }
     
-	public void reInitElasticSearch() throws InterruptedException, IndexerESException {
+	public void reInitElasticSearch() throws InterruptedException, IndexerESNotRecoverableException {
 		for (int i=1; i<=numberOfEsIndexingRetryAttempts; i++ ){
 			Thread.sleep(esIndexingRetrySleepTimeMs);
 			//logger.warn("Re-trying to connect to ES, partition {}, try# {}", currentPartition, i);
@@ -102,7 +103,7 @@ public class ElasticSearchClientService {
 					logger.error("Re-trying connect to ES, try# {} - failed after the last retry", i);						
 					//throw new IndexerESException("ERROR: failed to connect to ES after max number of retiries, partition: " +
 					//		currentPartition);
-					throw new IndexerESException("ERROR: failed to connect to ES after max number of retries ");
+					throw new IndexerESNotRecoverableException("ERROR: failed to connect to ES after max number of retries ");
 				}
 			}
 		}
