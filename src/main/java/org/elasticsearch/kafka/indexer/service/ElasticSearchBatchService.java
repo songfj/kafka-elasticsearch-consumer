@@ -60,7 +60,7 @@ public class ElasticSearchBatchService {
         	logger.info("Starting bulk posts to ES");
 
                postBulkToEs(bulkRequestBuilder);
-               logger.info("Bulk post to ES finished Ok for index: {}; # of messages: {}",
+               logger.info("Bulk post to ES finished Ok; # of messages: {}",
                       bulkRequestBuilder.numberOfActions());
           
         } finally {
