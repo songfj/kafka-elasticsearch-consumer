@@ -1,6 +1,8 @@
 package org.elasticsearch.kafka.indexer.service;
 
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import org.elasticsearch.ElasticsearchException;
@@ -26,7 +28,7 @@ import org.springframework.stereotype.Service;
 public class ElasticSearchBatchService {
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchBatchService.class);
     private BulkRequestBuilder bulkRequestBuilder;
-  //  private Map<String, BulkRequestBuilder> bulkRequestBuilders = new HashMap<>();
+    private Set<String> indexNames = new HashSet<>();
     @Autowired
     private ElasticSearchClientService elasticSearchClientService;
 
@@ -53,6 +55,7 @@ public class ElasticSearchBatchService {
             indexRequestBuilder.setRouting(routingValue);
         }
         bulkRequestBuilder.add(indexRequestBuilder);
+        indexNames.add(indexName);
     }
 
     public boolean postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException {
@@ -60,11 +63,12 @@ public class ElasticSearchBatchService {
         	logger.info("Starting bulk posts to ES");
 
                postBulkToEs(bulkRequestBuilder);
-               logger.info("Bulk post to ES finished Ok; # of messages: {}",
-                      bulkRequestBuilder.numberOfActions());
+               logger.info("Bulk post to ES finished Ok for indexes: {}; # of messages: {}",
+                       indexNames, bulkRequestBuilder.numberOfActions());
           
         } finally {
             bulkRequestBuilder = null;
+            indexNames.clear();
         }
         return true;
     }
