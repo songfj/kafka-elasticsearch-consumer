@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.ActionWriteResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -16,6 +17,7 @@ import org.elasticsearch.kafka.indexer.exception.IndexerESRecoverableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
@@ -27,8 +29,13 @@ import org.springframework.stereotype.Service;
 @Scope(value = BeanDefinition.SCOPE_PROTOTYPE)
 public class ElasticSearchBatchService {
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchBatchService.class);
+    private static final String SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE";
     private BulkRequestBuilder bulkRequestBuilder;
     private Set<String> indexNames = new HashSet<>();
+   
+    @Value("${sleepBetweenESReconnectAttempts:10000}")
+    private long sleepBetweenESReconnectAttempts;
+    
     @Autowired
     private ElasticSearchClientService elasticSearchClientService;
 
@@ -113,6 +120,16 @@ public class ElasticSearchBatchService {
                     String restResponse = bulkItemResp.getFailure().getStatus().name();
                     logger.error("Failed Message #{}, REST response:{}; errorMessage:{}",
                             failedCount, restResponse, errorMessage);
+                    
+                    if (SERVICE_UNAVAILABLE.equals(restResponse)){
+                    	logger.error("ES cluster unavailable, thread is sleeping for {} ms, after this current batch will be reprocessed",
+                    			sleepBetweenESReconnectAttempts);
+                    	Thread.sleep(sleepBetweenESReconnectAttempts);
+                    	throw new IndexerESRecoverableException("Recovering after an SERVICE_UNAVAILABLE response from Elastic Search " +
+                                " - will re-try processing current batch");
+                    }
+                    
+                    
                     // TODO: there does not seem to be a way to get the actual failed event
                     // until it is possible - do not log anything into the failed events log file
                     //FailedEventsLogger.logFailedToPostToESEvent(restResponse, errorMessage);
