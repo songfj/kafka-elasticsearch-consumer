@@ -74,6 +74,10 @@ esIndexName=kafkaESIndex
 # Default: “kafkaESType” 
 esIndexType=kafkaESType
 
+#Sleep time in ms between re-attempts of sending batch to ES , in case of SERVICE_UNAVAILABLE response
+# Default: 10000
+sleepBetweenESReconnectAttempts = 10000
+
 # Dry runs will not post to elasticsearch and won’t commit the offset to Kafka
 isDryRun=false
 
