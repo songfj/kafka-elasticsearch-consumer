@@ -1,27 +1,23 @@
 package org.elasticsearch.kafka.indexer.service;
 
-import static org.elasticsearch.cluster.metadata.AliasAction.newAddAliasAction;
+import java.net.InetSocketAddress;
+import java.util.List;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.cluster.metadata.AliasAction;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.kafka.indexer.exception.IndexerESException;
 import org.elasticsearch.kafka.indexer.exception.IndexerESNotRecoverableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
-import java.net.InetSocketAddress;
-import java.util.List;
 
 /**
  * Created by dhyan on 8/31/15.
@@ -33,7 +29,7 @@ public class ElasticSearchClientService {
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchClientService.class);
     public static final String CLUSTER_NAME = "cluster.name";
 
-    @Value("${esClusterName:KafkaESCluster}")
+    @Value("${esClusterName:elasticsearch}")
     private String esClusterName;
     @Value("#{'${esHostPortList:localhost:9300}'.split(',')}")
     private List<String> esHostPortList;

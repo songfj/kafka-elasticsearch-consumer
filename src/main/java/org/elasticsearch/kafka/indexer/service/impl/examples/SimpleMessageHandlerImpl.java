@@ -27,17 +27,17 @@ public class SimpleMessageHandlerImpl implements IMessageHandler {
 	private String indexType;
 
 	@Override
-	public byte[] transformMessage(byte[] inputMessage, Long offset) throws Exception {
+	public String transformMessage(String inputMessage, Long offset) throws Exception {
 		// do not do any transformations for this scenario - just return the message as is
 		return inputMessage;
 	}
 
 	@Override
-	public void addMessageToBatch(byte[] inputMessage, Long offset) throws Exception {
+	public void addMessageToBatch(String inputMessage) throws Exception {
 		String eventUUID = null; // we don't need a UUID for this simple scenario
 		String routingValue = null; // we don't need routing for this simple scenario		
 		elasticSearchBatchService.addEventToBulkRequest(
-			new String(inputMessage), indexName, indexType, eventUUID, routingValue);
+				inputMessage, indexName, indexType, eventUUID, routingValue);
 	}
 
 	@Override

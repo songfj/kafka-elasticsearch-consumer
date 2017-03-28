@@ -1,7 +1,7 @@
 ### Kafka properties ####################################
 # Kafka Brokers host:port list: <host1>:<port1>,…,<hostN>:<portN>
 # default: localhost:9092
-kafkaBrokersList=localhost:9092
+kafka.consumer.brokers.list=localhost:9092
 
 # Kafka Consumer group name prefix - 
 # each indexer job will have a clientId = consumerGroupName + "_" + partitionNumber
@@ -12,30 +12,8 @@ consumerGroupName=kafka_es_indexer
 # mandatory property, no default value specified.
 topic=my_log_topic
 
-## below two properties define a range of partitions to be processed by this application;
-## each partition will be processed by an IndexerJob in a separate Thread, so this also
-## defines the number of indexer threads created by the app - please set memory requirements accordingly
-
-# first partition in the Kafka's Topic(defined by 'topic' property) to process messages from
-# default: 0
-firstPartition=0
-
-# last partition in the Kafka's Topic(defined by 'topic' property) to process messages from
-# no default - is required
-lastPartition=3
-
-# Offset option from where the message fetching should happen in kafka
-# Values can be: CUSTOM / EARLIEST / LATEST / RESTART.
-# CUSTOM:  Message from the specified(defined by 'startOffset' property) offset in Kafka will be read. If 'CUSTOM' is set, then 'startOffset' property has to be set an integer value
-# EARLIEST:  Messages from the earliest available offset in kafka will be read
-# LATEST:  Messages from the latest available offset in kafka will be read
-# RESTART: Message reading will happen from the Offset where the last cycle of reading by this client has stopped
-# Default:"EARLIEST"
-startOffsetFrom=RESTART
-
-# integer value of the offset from where the message processing should happen. Use this property in conjunction with 'startOffsetFrom=CUSTOM'
-# mandatory property when 'startOffsetFrom' is set to 'CUSTOM', no default value specified.
-startOffset=0
+#Number of consumer threads
+kafka.consumer.pool.count=5
 
 # Kafka FetchRequest's minBytes value 
 # Default: "31457280(bytes), i.e:(10 * 1024 * 1024 * 3)"
@@ -49,13 +27,15 @@ kafkaSimpleConsumerBufferSizeBytes=31457280
 # Kafka SimpleConsumer socket timeout in MS
 kafkaSimpleConsumerSocketTimeoutMs=10000
 
-# timeout in seconds before force-stopping Indexer app and all indexer jobs
-appStopTimeoutSeconds=10
+# kafka session timeout in ms - is kafka broker does not get a heartbeat from a consumer during this interval - 
+# consumer is marked as 'dead' and re-balancing is kicking off
+# default: 30s x 1000 = 30000 ms
+consumerSessionTimeoutMs=30000
 
-# number of times to try to re-init Kafka connections/consumer if read/write to Kafka fails
-numberOfReinitTries=2
-# sleep time in ms between Kafka re-init attempts
-kafkaReinitSleepTimeMs=10000
+# time in ms to wait for new messages to arrive when calling poll() on Kafka brokers , if there are no messages right away
+# WARNING: make sure this value is not higher than consumerSessionTimeoutMs !!!
+# default: 10 sec = 10 x 1000 = 10000 ms
+kafkaPollIntervalMs=10000
 
 ### ElasticSearch properties ####################################
 # ElasticSearch Host and Port List for all the nodes
