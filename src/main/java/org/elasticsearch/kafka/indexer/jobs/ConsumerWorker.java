@@ -133,7 +133,7 @@ public class ConsumerWorker implements Runnable {
 	private boolean postToElasticSearch() throws InterruptedException, IndexerESNotRecoverableException{
 		boolean moveToTheNextBatch = true;
 		try {
-			moveToTheNextBatch = messageHandler.postToElasticSearch();
+			messageHandler.postToElasticSearch();
 		} catch (IndexerESRecoverableException e) {
 			moveToTheNextBatch = false;
 			logger.error("Error posting messages to Elastic Search - will re-try processing the batch; error: {}",

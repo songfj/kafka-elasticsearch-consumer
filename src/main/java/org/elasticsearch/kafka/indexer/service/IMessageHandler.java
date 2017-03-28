@@ -24,7 +24,7 @@ public interface IMessageHandler {
      * @return
      * @throws Exception
      */
-    public boolean postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException;
+    public void postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException;
     
 
 

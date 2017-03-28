@@ -41,7 +41,7 @@ public class SimpleMessageHandlerImpl implements IMessageHandler {
 	}
 
 	@Override
-	public boolean postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException {
-		return elasticSearchBatchService.postToElasticSearch();
+	public void postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException {
+		elasticSearchBatchService.postToElasticSearch();
 	}
 }
