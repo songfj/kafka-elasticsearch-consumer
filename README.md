@@ -29,6 +29,8 @@
 	<property name="LOG_DIR" value="/tmp"/>
 	
  adjust values of max sizes and number of log files as needed
+ 
+ `$INDEXER_HOME`/src/main/resources/config/kafka-es-indexer-start-options.config - consumer start options can be configured here (Start from earliest, latest, etc), more details inside a file
 
 4. modify $INDEXER_HOME`/src/main/resources/spring/kafka-es-context-public.xml if needed
 
@@ -157,3 +159,4 @@ kafka-elasticsearch-standalone-consumer
  - [Marina Popova](https://github.com/ppine7)
  - [Dhyan Muralidharan](https://github.com/dhyan-yottaa)
  - [Andriy Pyshchyk](https://github.com/apysh)
+ - [Vitalii Chernyak](https://github.com/merlin-zaraza)
