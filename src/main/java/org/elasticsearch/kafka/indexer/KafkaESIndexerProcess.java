@@ -1,6 +1,5 @@
 package org.elasticsearch.kafka.indexer;
 
-import org.elasticsearch.kafka.indexer.service.JobManagerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -14,7 +13,7 @@ public class KafkaESIndexerProcess {
         logger.info("Starting KafkaESIndexerProcess  ");
         ClassPathXmlApplicationContext indexerContext = new ClassPathXmlApplicationContext("spring/kafka-es-context-public.xml");
         indexerContext.registerShutdownHook();
-        indexerContext.getBean(JobManagerService.class).processAllThreads();
+
         logger.info("KafkaESIndexerProcess is started OK");
 
     }

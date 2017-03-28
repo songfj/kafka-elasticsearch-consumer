@@ -14,9 +14,9 @@ public interface IMessageHandler {
      * @param offset
      * @throws Exception
      */
-    public void addMessageToBatch(byte[] inputMessage, Long offset) throws Exception;
+    public void addMessageToBatch(String inputMessage) throws Exception;
 
-    public byte[] transformMessage(byte[] inputMessage, Long offset) throws Exception;
+    public String transformMessage(String inputMessage, Long offset) throws Exception;
     
 
     /**
@@ -24,7 +24,7 @@ public interface IMessageHandler {
      * @return
      * @throws Exception
      */
-    public boolean postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException;
+    public void postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException;
     
 
 

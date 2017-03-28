@@ -12,20 +12,6 @@
 
 ### **Kafka Standalone Consumer [Indexer] will read messages from Kafka, in batches, process and bulk-index them into ElasticSearch.**
 
-### _As described in the illustration above, here is how the indexer works:_
-
-* Lets assume Kafka has a topic `Topic1` with 5 partitions
-
-* In the configuration file, kafka-es-indexer.properties, set firstPartition=0 and lastPartition=4 properties 
-
-* start the indexer application as described below 
-
-* there will be 5 threads started, one for each consumer for each of the partitions
-
-* each job will be reading events from Kafka and indexing them (in batches) into ElasticSearch - using configured index name and type
-
-* when a new partition is added to the kafka topic - configuration has to be updated and the indexer application has to be restarted
-
 
 # How to use ? 
 
@@ -37,10 +23,14 @@
 
 3. cp `$INDEXER_HOME`/src/main/resources/config/logback.xml.template /your/absolute/path/logback.xml
 
+4. cp `$INDEXER_HOME`/src/main/resources/config/kafka-es-indexer-start-options.config /your/absolute/path/kafka-es-indexer-start-options.config
+
  specify directory you want to store logs in:
 	<property name="LOG_DIR" value="/tmp"/>
 	
  adjust values of max sizes and number of log files as needed
+ 
+ `$INDEXER_HOME`/src/main/resources/config/kafka-es-indexer-start-options.config - consumer start options can be configured here (Start from earliest, latest, etc), more details inside a file
 
 4. modify $INDEXER_HOME`/src/main/resources/spring/kafka-es-context-public.xml if needed
 
@@ -87,7 +77,7 @@
 
 # Versions
 
-* Kafka Version: 0.8.2.1
+* Kafka Version: 0.9.0.1
 
 * ElasticSearch: 2.x 
 
@@ -169,3 +159,4 @@ kafka-elasticsearch-standalone-consumer
  - [Marina Popova](https://github.com/ppine7)
  - [Dhyan Muralidharan](https://github.com/dhyan-yottaa)
  - [Andriy Pyshchyk](https://github.com/apysh)
+ - [Vitalii Chernyak](https://github.com/merlin-zaraza)

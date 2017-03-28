@@ -11,9 +11,6 @@
 
 	<bean id="objectMapper" class="com.fasterxml.jackson.databind.ObjectMapper"/>
 
-	<bean id="kafkaClientService"
-		  class="org.elasticsearch.kafka.indexer.service.KafkaClientService"
-		  scope="prototype"/>
 	<bean id="elasticSearchClientService"
 		  class="org.elasticsearch.kafka.indexer.service.ElasticSearchClientService"
 		  scope="prototype"/>
