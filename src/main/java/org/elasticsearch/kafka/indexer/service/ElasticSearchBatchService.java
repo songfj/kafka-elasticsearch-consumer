@@ -65,15 +65,13 @@ public class ElasticSearchBatchService {
         indexNames.add(indexName);
     }
 
-	public void postToElasticSearch()
-			throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException {
+	public void postToElasticSearch() throws InterruptedException, IndexerESRecoverableException, IndexerESNotRecoverableException {
 		try {
 			if (bulkRequestBuilder != null) {
 				logger.info("Starting bulk posts to ES");
 
 				postBulkToEs(bulkRequestBuilder);
-				logger.info("Bulk post to ES finished Ok for indexes: {}; # of messages: {}", indexNames,
-						bulkRequestBuilder.numberOfActions());
+				logger.info("Bulk post to ES finished Ok for indexes: {}; # of messages: {}", indexNames, bulkRequestBuilder.numberOfActions());
 			}
 		} finally {
 			bulkRequestBuilder = null;
