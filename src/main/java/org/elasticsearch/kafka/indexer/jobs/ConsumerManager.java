@@ -1,21 +1,6 @@
 package org.elasticsearch.kafka.indexer.jobs;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
@@ -23,9 +8,20 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.elasticsearch.kafka.indexer.service.IMessageHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import java.io.File;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author marinapopova
@@ -61,8 +57,12 @@ public class ConsumerManager {
     @Value("${kafka.consumer.pool.count:3}")
     private int kafkaConsumerPoolCount;
 
+    @Autowired
+    @Qualifier("messageHandler")
+    private ObjectFactory<IMessageHandler> messageHandlerObjectFactory;
+
+    @Value("${config.dir}/kafka-es-indexer-start-options.config")
     private String consumerStartOptionsConfig;
-    private IMessageHandler messageHandler;
 
     private ExecutorService consumersThreadPool = null;
     private List<ConsumerWorker> consumers = new ArrayList<>();
@@ -74,13 +74,7 @@ public class ConsumerManager {
     public ConsumerManager() {
     }
 
-    public IMessageHandler getMessageHandler() {
-        return messageHandler;
-    }
 
-    public void setMessageHandler(IMessageHandler messageProcessor) {
-        this.messageHandler = messageProcessor;
-    }
 
     public void setConsumerStartOptionsConfig(String consumerStartOptionsConfig) {
         this.consumerStartOptionsConfig = consumerStartOptionsConfig;
@@ -112,7 +106,7 @@ public class ConsumerManager {
 
         for (int consumerNumber = 0; consumerNumber < consumerPoolCount; consumerNumber++) {
             ConsumerWorker consumer = new ConsumerWorker(
-                    consumerNumber, consumerInstanceName, kafkaTopic, kafkaProperties, kafkaPollIntervalMs, messageHandler);
+                    consumerNumber, consumerInstanceName, kafkaTopic, kafkaProperties, kafkaPollIntervalMs, messageHandlerObjectFactory.getObject());
             consumers.add(consumer);
             consumersThreadPool.submit(consumer);
         }
