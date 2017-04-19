@@ -20,8 +20,6 @@
 		  scope="prototype"
 		  />
 	  
-    <bean id="kafkaESConsumerManager" class="org.elasticsearch.kafka.indexer.jobs.ConsumerManager"
-            p:messageHandler-ref="messageHandler"
-    	    p:consumerStartOptionsConfig="${config.dir}/kafka-es-indexer-start-options.config"/>
+    <bean id="kafkaESConsumerManager" class="org.elasticsearch.kafka.indexer.jobs.ConsumerManager" />
 
 </beans>
