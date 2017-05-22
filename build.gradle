@@ -121,7 +121,7 @@ bintray {
         repo = 'bigdatadevs-repo'
         name = 'kafka-elasticsearch-consumer'
         userOrg = artifact_provider_org
-        licenses = ['AGPL-V3']
+        licenses = ['Apache-2.0']
         vcsUrl = artifact_provider_url
         version {
             name = project.version
