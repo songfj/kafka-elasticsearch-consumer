@@ -14,6 +14,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.kafka.indexer.exception.IndexerESNotRecoverableException;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,9 +49,11 @@ public class ElasticSearchClientService {
     public void init() throws Exception {
     	logger.info("Initializing ElasticSearchClient ...");
         // connect to elasticsearch cluster
-        Settings settings = Settings.settingsBuilder().put(CLUSTER_NAME, esClusterName).build();
+        Settings settings = Settings.builder().put(CLUSTER_NAME, esClusterName).build();
         try {
-            esTransportClient = TransportClient.builder().settings(settings).build();
+        	
+        	//new PreBuiltTransportClient(
+            esTransportClient  = new PreBuiltTransportClient(settings);
             for (String eachHostPort : esHostPortList) {
                 logger.info("adding [{}] to TransportClient ... ", eachHostPort);
                 String[] hostPortTokens = eachHostPort.split(":");
