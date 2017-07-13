@@ -119,7 +119,7 @@ public class ElasticSearchClientService {
 
 	public void createIndex(String indexName){
 		esTransportClient.admin().indices().prepareCreate(indexName).execute().actionGet();
-		logger.info("Created index {} successfully" + indexName);
+		logger.info("Created index {} successfully",  indexName);
 	}
 
 	public void createIndexAndAlias(String indexName,String aliasName){
