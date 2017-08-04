@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 public class ElasticSearchBatchService {
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchBatchService.class);
     private static final String SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE";
+    private static final String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
     private BulkRequestBuilder bulkRequestBuilder;
     private Set<String> indexNames = new HashSet<>();
    
@@ -119,7 +120,7 @@ public class ElasticSearchBatchService {
                     logger.error("Failed Message #{}, REST response:{}; errorMessage:{}",
                             failedCount, restResponse, errorMessage);
                     
-                    if (SERVICE_UNAVAILABLE.equals(restResponse)){
+                    if (SERVICE_UNAVAILABLE.equals(restResponse) || INTERNAL_SERVER_ERROR.equals(restResponse)){
                     	logger.error("ES cluster unavailable, thread is sleeping for {} ms, after this current batch will be reprocessed",
                     			sleepBetweenESReconnectAttempts);
                     	Thread.sleep(sleepBetweenESReconnectAttempts);
