@@ -56,7 +56,9 @@ public class ConsumerWorker implements Runnable {
 				int numProcessedMessages = 0;
 				int numSkippedIndexingMessages = 0;
 				int numMessagesInBatch = 0;
-				long offsetOfNextBatch = 0;
+				long pollOffsetStart = 0;
+				long pollOffsetEnd = 0;
+				long pollStartNano = 0;
 
 				logger.debug("consumerId={}; about to call consumer.poll() ...", consumerId);
 				ConsumerRecords<String, String> records = consumer.poll(pollIntervalMs);
@@ -64,6 +66,7 @@ public class ConsumerWorker implements Runnable {
 
 				// processing messages and adding them to ES batch
 				for (ConsumerRecord<String, String> record : records) {
+
 					numMessagesInBatch++;
 					Map<String, Object> data = new HashMap<>();
 					data.put("partition", record.partition());
@@ -73,8 +76,8 @@ public class ConsumerWorker implements Runnable {
 					logger.debug("consumerId={}; recieved record: {}", consumerId, data);
 					if (isPollFirstRecord) {
 						isPollFirstRecord = false;
-						logger.info("Start offset for partition {} in this poll : {}", record.partition(),
-								record.offset());
+						pollOffsetStart = record.offset();
+						pollStartNano = System.nanoTime();
 					}
 
 					try {
@@ -82,6 +85,7 @@ public class ConsumerWorker implements Runnable {
 						messageHandler.addMessageToBatch(processedMessage);
 						partitionOffsetMap.put(record.partition(), record.offset());
 						numProcessedMessages++;
+						pollOffsetEnd = record.offset();
 					} catch (Exception e) {
 						numSkippedIndexingMessages++;
 
@@ -90,23 +94,24 @@ public class ConsumerWorker implements Runnable {
 						FailedEventsLogger.logFailedToTransformEvent(record.offset(), e.getMessage(), record.value());
 					}
 
-				}
 
-				logger.info(
-						"Total # of messages in this batch: {}; "
-								+ "# of successfully transformed and added to Index: {}; # of skipped from indexing: {}; offsetOfNextBatch: {}",
-						numMessagesInBatch, numProcessedMessages, numSkippedIndexingMessages, offsetOfNextBatch);
+				}
+				long timeBeforePost = System.nanoTime()-pollStartNano;
+				logger.info("Total # of messages in this batch: {} , nano's before invoking post: {}", numMessagesInBatch, timeBeforePost);
 
 				// push to ES whole batch
 				boolean moveToNextBatch = false;
 				if (!records.isEmpty()) {				
 					moveToNextBatch = postToElasticSearch();
+					long processingTime = System.nanoTime() - pollStartNano;
+					logger.info("Previous poll snapshot: start-offset: {}, end-offset: {}, total-messages: {}, message-processed: {}, messages-skipped: {}, processing-time-nanos: {}", pollOffsetStart, pollOffsetEnd, numMessagesInBatch, numProcessedMessages, numSkippedIndexingMessages, processingTime);
 				}
-				
+
 				if (moveToNextBatch) {
 					logger.info("Invoking commit for partition/offset : {}", partitionOffsetMap);
 					consumer.commitAsync(offsetLoggingCallback);
 				}
+
 
 			}
 		} catch (WakeupException e) {
@@ -155,4 +160,6 @@ public class ConsumerWorker implements Runnable {
 	public int getConsumerId() {
 		return consumerId;
 	}
+
+
 }
