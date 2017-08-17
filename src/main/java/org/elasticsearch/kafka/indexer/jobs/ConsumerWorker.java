@@ -74,6 +74,7 @@ public class ConsumerWorker implements Runnable {
 					logger.debug("consumerId={}; recieved record: {}", consumerId, data);
 					if (isPollFirstRecord) {
 						isPollFirstRecord = false;
+						logger.info("Start offset for partition {} in this poll : {}", record.partition(), record.offset());
 						pollStartMillis = System.currentTimeMillis();
 					}
 
