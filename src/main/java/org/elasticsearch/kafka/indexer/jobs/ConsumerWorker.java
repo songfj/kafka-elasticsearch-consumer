@@ -74,6 +74,7 @@ public class ConsumerWorker implements Runnable {
 					logger.debug("consumerId={}; recieved record: {}", consumerId, data);
 					if (isPollFirstRecord) {
 						isPollFirstRecord = false;
+						logger.info("Start offset for partition {} in this poll : {}", record.partition(), record.offset());
 						pollStartMillis = System.currentTimeMillis();
 					}
 
@@ -98,7 +99,7 @@ public class ConsumerWorker implements Runnable {
 				boolean moveToNextBatch = false;
 				if (!records.isEmpty()) {				
 					moveToNextBatch = postToElasticSearch();
-					long timeToPost = System.currentTimeMillis() - timeBeforePost;
+					long timeToPost = System.currentTimeMillis() ;
 					logger.info("Previous poll snapshot: total-messages: {}" +
 									", messages-processed: {}" +
 									", messages-skipped: {}" +
