@@ -99,7 +99,7 @@ public class ConsumerWorker implements Runnable {
 				boolean moveToNextBatch = false;
 				if (!records.isEmpty()) {				
 					moveToNextBatch = postToElasticSearch();
-					long timeToPost = System.currentTimeMillis() - timeBeforePost;
+					long timeToPost = System.currentTimeMillis() ;
 					logger.info("Previous poll snapshot: total-messages: {}" +
 									", messages-processed: {}" +
 									", messages-skipped: {}" +
