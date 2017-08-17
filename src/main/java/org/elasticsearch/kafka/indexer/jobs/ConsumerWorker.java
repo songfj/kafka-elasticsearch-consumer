@@ -111,7 +111,7 @@ public class ConsumerWorker implements Runnable {
 							, numSkippedIndexingMessages
 							, timeBeforePost-pollStartMillis
 							, timeToPost-pollStartMillis
-							, numProcessedMessages/(timeToPost-pollStartMillis)) ;
+							, (timeToPost-pollStartMillis)/numProcessedMessages) ;
 				}
 
 				if (moveToNextBatch) {
