@@ -56,9 +56,7 @@ public class ConsumerWorker implements Runnable {
 				int numProcessedMessages = 0;
 				int numSkippedIndexingMessages = 0;
 				int numMessagesInBatch = 0;
-				long pollOffsetStart = 0;
-				long pollOffsetEnd = 0;
-				long pollStartNano = 0;
+				long pollStartMillis = 0;
 
 				logger.debug("consumerId={}; about to call consumer.poll() ...", consumerId);
 				ConsumerRecords<String, String> records = consumer.poll(pollIntervalMs);
@@ -76,8 +74,7 @@ public class ConsumerWorker implements Runnable {
 					logger.debug("consumerId={}; recieved record: {}", consumerId, data);
 					if (isPollFirstRecord) {
 						isPollFirstRecord = false;
-						pollOffsetStart = record.offset();
-						pollStartNano = System.nanoTime();
+						pollStartMillis = System.currentTimeMillis();
 					}
 
 					try {
@@ -85,7 +82,6 @@ public class ConsumerWorker implements Runnable {
 						messageHandler.addMessageToBatch(processedMessage);
 						partitionOffsetMap.put(record.partition(), record.offset());
 						numProcessedMessages++;
-						pollOffsetEnd = record.offset();
 					} catch (Exception e) {
 						numSkippedIndexingMessages++;
 
@@ -96,15 +92,25 @@ public class ConsumerWorker implements Runnable {
 
 
 				}
-				long timeBeforePost = System.nanoTime()-pollStartNano;
-				logger.info("Total # of messages in this batch: {} , nano's before invoking post: {}", numMessagesInBatch, timeBeforePost);
+				long timeBeforePost = System.currentTimeMillis();
 
 				// push to ES whole batch
 				boolean moveToNextBatch = false;
 				if (!records.isEmpty()) {				
 					moveToNextBatch = postToElasticSearch();
-					long processingTime = System.nanoTime() - pollStartNano;
-					logger.info("Previous poll snapshot: start-offset: {}, end-offset: {}, total-messages: {}, message-processed: {}, messages-skipped: {}, processing-time-nanos: {}", pollOffsetStart, pollOffsetEnd, numMessagesInBatch, numProcessedMessages, numSkippedIndexingMessages, processingTime);
+					long timeToPost = System.currentTimeMillis() - timeBeforePost;
+					logger.info("Previous poll snapshot: total-messages: {}" +
+									", messages-processed: {}" +
+									", messages-skipped: {}" +
+									", time-to-create-batch: {} ms" +
+									", time-to-post-millis: {} ms" +
+									", time-per-message: {} ms"
+							, numMessagesInBatch
+							, numProcessedMessages
+							, numSkippedIndexingMessages
+							, timeBeforePost-pollStartMillis
+							, timeToPost-pollStartMillis
+							, numProcessedMessages/(timeToPost-pollStartMillis)) ;
 				}
 
 				if (moveToNextBatch) {
